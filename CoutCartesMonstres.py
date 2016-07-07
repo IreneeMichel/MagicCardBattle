@@ -45,6 +45,7 @@ def run():
     fenetre['bg']='white'
     fenetre.title("Creation de Monstre") 
     monster=Card("mouton",1,1)
+    monster.photofile='./photo/mouton.jpg'
     monster.initWidget(fenetre)
     fenetre.mainloop()
     #fenetre.destroy()
