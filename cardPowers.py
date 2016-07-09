@@ -1182,7 +1182,7 @@ class Sarcophage(SpellWithLevel) :
         return (1.6+self.level*0.5)*self.target.getCostMultiplier(self)
 #    def Effect(self) :
     def effect(self,origin,target):
-        #print "appel gel effect"
+        #if isinstance(target,AnimatedCreature) : print "appel sarco effect"
         if isinstance(target,Creature) and target.pv>0:
             if hasattr(target,"sarcoturn") :
                 target.sarcoturn = max(target.sarcoturn,self.level)
@@ -1210,14 +1210,15 @@ class Sarcophage(SpellWithLevel) :
                         #print selfsarco.name,"retrouve bien sa riposte"
             target.sufferDamage = MethodType(sd,target)
             def doNothing(monsterself,oponent) :
+                #if isinstance(monsterself,AnimatedCreature) : print "pas de defense en sarcophage"
                 pass
-            def modifbefore(bonusself,oneself,oponent) :
-                #print "sarco attaque : pas de riposte pour",oneself.name," attaque par",oponent.name
+            def modifbefore(bonusself,oponent,oneself) :
+                #if isinstance(oneself,AnimatedCreature) : print "sarco modifbefore : pas de riposte pour",oneself," attaque par",oponent
                 old_def=FunctionType(oneself.defend.func_code,globals(),closure=oneself.defend.func_closure)
                 oneself.defend=MethodType(doNothing,oneself)
                 oldafter=FunctionType(oneself.afterCombat.func_code,globals(),closure=oneself.afterCombat.func_closure)
                 def modifafter(selfsarco,other) :
-                        #print selfsarco.name,"retrouve bien sa riposte apres"
+                        #if isinstance(other,AnimatedCreature) : print selfsarco,"retrouve bien sa riposte apres"
                         selfsarco.defend=MethodType(old_def,selfsarco)
                         selfsarco.afterCombat=MethodType(oldafter,selfsarco)
                 oneself.afterCombat=MethodType(modifafter,oneself)                    

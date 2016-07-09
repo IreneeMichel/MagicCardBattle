@@ -73,8 +73,8 @@ class Creature() :
     def combatAnim(self,target) :
         self.combat(target)
     def combat(self,target) :
-        #from Player import Player
-        #if not isinstance(target,Player) : print "combat de base",self.name,"contre ",target.name
+        from Player import Computer0
+        #if not isinstance(target.player,Computer0) : print "combat de base",self,"attaque ",target
         self.ready=False
         for b in self.bonus :
             b.beforeCombat(self,target)
@@ -99,6 +99,7 @@ class Creature() :
             damage=b.modifyDamage(self,damage,target)
         target.sufferDamage(damage)
     def defend(self,target) :
+        #print "defend normal"
         self.attack(target)
     def sufferDamage(self,damage) :
         self.sufferDamageAnimation(damage)
