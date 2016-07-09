@@ -1,63 +1,63 @@
 (dp0
-S'Guerrisseur'
+S'AvatarImage'
 p1
-I1
-sS'Boule de feu'
+S'Avatars\\Chevalier_noir#.png'
 p2
-I1
-sS'Piquier'
+sS'Source sacre'
 p3
-I1
-sS'Epineux'
+I2
+sS'Troll Rouge'
 p4
-I3
-sS'Corruption'
+I2
+sS'Diamant'
 p5
 I1
-sS'Caserne'
+sS'Guerrisseur'
 p6
 I1
-sS'Foudre'
+sS'Loup'
 p7
-I2
-sS'Simple soldat'
-p8
 I3
-sS'Diamant'
-p9
-I1
 sS'Garde'
-p10
+p8
 I1
 sS'Colosse'
-p11
+p9
 I2
+sS'Fromage'
+p10
+I1
 sS'Source de Mort'
+p11
+I1
+sS'Piquier'
 p12
 I1
-sS'Petite Vase'
-p13
-I2
-sS'AvatarImage'
-p14
-S'Avatars\\Chevalier_noir#.png'
-p15
-sS'Troll Rouge'
-p16
-I2
-sS'Laboratoire de Genetique'
-p17
-I1
-sS'Fromage'
-p18
-I1
 sS'Immortel'
-p19
+p13
+I1
+sS'Laboratoire de Genetique'
+p14
 I1
 sS'Assassinat'
-p20
+p15
 I3
-sS'Source sacre'
+sS'Boule de feu'
+p16
+I1
+sS'Petite Vase'
+p17
+I2
+sS'Epineux'
+p18
+I3
+sS'Corruption'
+p19
+I1
+sS'Caserne'
+p20
+I1
+sS'Foudre'
 p21
 I2
 s.

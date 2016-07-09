@@ -47,9 +47,11 @@ if len(glob.glob("Cards/*.png"))<10 :
     execfile('./TouchMonsterFiles.py')
  
 all_cards = {}
-for f in glob.glob("CardFiles/all*.sav") :
-    #print "load cards in ",f
-    d = pickle.load( open(f, "r" ))
+for fn in glob.glob("CardFiles/all*.sav") :
+    #print "load cards in ",fn
+    f=open(fn, "rb" )
+    d = pickle.load(f)
+    f.close()
     all_cards.update(d)
 
 
@@ -134,7 +136,7 @@ class DeckButton(Button):
         size = (1500,2000)
         font_size = 36
         
-        with open("Decks\\"+deck_name.replace(" ","_")+".dek","rb") as fil:
+        with open("Decks\\"+deck_name.replace(" ","_")+".dek","r") as fil:
             deck = pickle.load(fil)
             del deck["AvatarImage"]
             [all_cards[k[0]].getCost()*k[1] for k in deck.items()] 

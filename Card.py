@@ -180,12 +180,12 @@ class Card :
         all_monsters.update(loaded_monsters)
         print "window reinit done"
         with open(self.dumping_file,"wb") as filepickle :
-            pickle.dump(loaded_monsters , filepickle )
+            pickle.dump(loaded_monsters , filepickle,2 )
         with open(self.dumping_file,"rb") as filepickle :
             print "now in file", self.dumping_file,":",pickle.load(filepickle).keys()
             filepickle.close()
         with open("CardFiles/all_monsters.sav", "wb" ) as f :    
-            pickle.dump(all_monsters , f )
+            pickle.dump(all_monsters , f ,2)
             f.close()
         import os.path
         if not os.path.isfile("CardFiles/recup_monsters.sav") or len(all_monsters)>=len(pickle.load(open("CardFiles/recup_monsters.sav","rb"))):
@@ -197,7 +197,7 @@ class Card :
             print "sleep"
             time.sleep(1) 
             shutil.copyfile("CardFiles/recup_monsters.sav","CardFiles/all_monsters.sav")
-            pickle.dump(all_monsters , open( "CardFiles/all_monsters.sav", "wb" ) )
+            pickle.dump(all_monsters , open( "CardFiles/all_monsters.sav", "wb" ),2 )
             all_monsters = pickle.load(open( "CardFiles/all_monsters.sav", "rb" ))
             print "ERROR IN ALL MONSTERS"
 
@@ -210,7 +210,8 @@ class Card :
     def Open(self,*args) :
         print "open monster ",  self.opening.get()        
         lv = int(open("progression","r").read())
-        if not(lv<8 and any(["Decks\\"+d.replace(" ","_")+".dek" in self.deck_check(self.opening.get()) for d in blocked_decks])):            
+        deck_with_card =  self.deck_check(self.opening.get())
+        if not(lv<8 and any(["Decks\\"+d.replace(" ","_")+".dek" in deck_with_card for d in blocked_decks])):            
             self.card_win.pack_forget()
             fenetre=self.card_win.master
             #for i in Card.monster_list.keys() :
@@ -257,7 +258,8 @@ class Card :
         decks = glob.glob("Decks\\*.dek")
         content = []
         for d in decks:
-            with open(d,"rb") as fil:
+            print "deck",d
+            with open(d,"r") as fil: # problem with python : I wanted to use "rb"
                 deck = pickle.load(fil)
                 if creature in deck.keys():
                     content.append(d)
@@ -271,7 +273,7 @@ class Card :
                 f="CardFiles/"+self.category.get()+"_monsters.sav"
                 d = pickle.load(open(f,"rb"))
                 del d[creature]
-                pickle.dump(d,open(f,"wb"))
+                pickle.dump(d,open(f,"wb"),2)
             except:
                 pass
         else :
@@ -284,7 +286,7 @@ class Card :
                 f = pickle.load(open(files[0],"rb"))
                 try:
                     del f[creature]
-                    pickle.dump(f,open(files[0],"wb"))
+                    pickle.dump(f,open(files[0],"wb"),2)
                     print "Deleted in ",files[0]
                 except:
                     print "Error in deletion in dumping (dedicated) file"    
@@ -294,7 +296,7 @@ class Card :
                 else :
                     print "no dumping file"
             del all_monsters[creature]
-            pickle.dump(all_monsters , open( "CardFiles/all_monsters.sav", "wb" ) )
+            pickle.dump(all_monsters , open( "CardFiles/all_monsters.sav", "wb" ),2 )
             print "deletion of monster ",  creature, "done"
             shutil.copyfile("CardFiles/all_monsters.sav","CardFiles/recup_monsters.sav")
         #print all_monsters.keys()

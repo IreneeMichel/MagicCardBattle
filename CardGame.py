@@ -190,7 +190,7 @@ class Game():
             all_cards={}
             for f in glob.glob("CardFiles/all*.sav") :
                 #print "load cards in ",f
-                d = pickle.load( open(f, "r" ))
+                d = pickle.load( open(f, "rb" ))
                 all_cards.update(d)
             name="Decks\\"+name.replace(" ","_")+".dek"
             deck_names=pickle.load( open(name))
