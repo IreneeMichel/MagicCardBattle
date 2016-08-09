@@ -18,6 +18,9 @@ import glob
 from Bonus import getBonusMenu
 from Spell import getSpellMenu
 
+from outils import file2name
+from outils import localopen
+
 blocked_decks = ["Nains de Omaghetar","Mauvais Reves","Necroman","Horde","Demon","Vikings","Chateau"]
 def get_blocked_decks():
         return blocked_decks
@@ -170,7 +173,7 @@ class Card :
         print "save image done"
         # now new monster
         global all_monsters
-        with open(self.dumping_file,"rb") as filepickle :
+        with localopen(self.dumping_file,"rb") as filepickle :
             loaded_monsters = pickle.load(filepickle)
             filepickle.close()
         #print "Monsters from file = ",file_monsters
@@ -179,12 +182,12 @@ class Card :
         #print "Monsters from file (after) = ",file_monsters
         all_monsters.update(loaded_monsters)
         print "window reinit done"
-        with open(self.dumping_file,"wb") as filepickle :
+        with localopen(self.dumping_file,"wb") as filepickle :
             pickle.dump(loaded_monsters , filepickle,2 )
-        with open(self.dumping_file,"rb") as filepickle :
+        with localopen(self.dumping_file,"rb") as filepickle :
             print "now in file", self.dumping_file,":",pickle.load(filepickle).keys()
             filepickle.close()
-        with open("CardFiles/all_monsters.sav", "wb" ) as f :    
+        with localopen("CardFiles/all_monsters.sav", "wb" ) as f :
             pickle.dump(all_monsters , f ,2)
             f.close()
         import os.path
@@ -192,13 +195,13 @@ class Card :
             shutil.copyfile("CardFiles/all_monsters.sav","CardFiles/recup_monsters.sav")
             print "SAVED in all_monsters.sav and recup_monsters.sav"
         else:
-            print len(pickle.load(open("CardFiles/recup_monsters.sav","rb")))
+            print len(pickle.load(localopen("CardFiles/recup_monsters.sav","rb")))
             import time
             print "sleep"
             time.sleep(1) 
             shutil.copyfile("CardFiles/recup_monsters.sav","CardFiles/all_monsters.sav")
-            pickle.dump(all_monsters , open( "CardFiles/all_monsters.sav", "wb" ),2 )
-            all_monsters = pickle.load(open( "CardFiles/all_monsters.sav", "rb" ))
+            pickle.dump(all_monsters , localopen( "CardFiles/all_monsters.sav", "wb" ),2 )
+            all_monsters = pickle.load(localopen( "CardFiles/all_monsters.sav", "rb" ))
             print "ERROR IN ALL MONSTERS"
 
 
@@ -208,10 +211,10 @@ class Card :
         fenetre.child=self
         self.refreshWidget()
     def Open(self,*args) :
-        print "open monster ",  self.opening.get()        
-        lv = int(open("progression","r").read())
+        print "open monster ",  self.opening.get()
+        lv = int(localopen("progression","r").read())
         deck_with_card =  self.deck_check(self.opening.get())
-        if not(lv<8 and any(["Decks\\"+d.replace(" ","_")+".dek" in deck_with_card for d in blocked_decks])):            
+        if not(lv<8 and any([name2file("Decks",d,".dek") in deck_with_card for d in blocked_decks])):
             self.card_win.pack_forget()
             fenetre=self.card_win.master
             #for i in Card.monster_list.keys() :
@@ -219,7 +222,7 @@ class Card :
             self = Card.monster_list[self.opening.get()]
             print self.name +" loaded"
             if not("CardFiles" in self.dumping_file):
-                self.dumping_file = "CardFiles\\"+self.dumping_file
+                self.dumping_file = os.path.join("CardFiles",self.dumping_file)
             if self.pv<1 :
                 self.is_spell=True
             else :
@@ -255,11 +258,11 @@ class Card :
         self.setFile(*args)
     
     def deck_check(self,creature):
-        decks = glob.glob("Decks\\*.dek")
+        decks = glob.glob(os.path.join("Decks","*.dek"))
         content = []
         for d in decks:
             print "deck",d
-            with open(d,"r") as fil: # problem with python : I wanted to use "rb"
+            with localopen(d,"r") as fil: # problem with python : I wanted to use "rb"
                 deck = pickle.load(fil)
                 if creature in deck.keys():
                     content.append(d)
@@ -271,9 +274,9 @@ class Card :
             print creature," not in all_monsters"
             try :
                 f="CardFiles/"+self.category.get()+"_monsters.sav"
-                d = pickle.load(open(f,"rb"))
+                d = pickle.load(localopen(f,"rb"))
                 del d[creature]
-                pickle.dump(d,open(f,"wb"),2)
+                pickle.dump(d,localopen(f,"wb"),2)
             except:
                 pass
         else :
@@ -283,10 +286,10 @@ class Card :
             else:
                 files=None
             if files :
-                f = pickle.load(open(files[0],"rb"))
+                f = pickle.load(localopen(files[0],"rb"))
                 try:
                     del f[creature]
-                    pickle.dump(f,open(files[0],"wb"),2)
+                    pickle.dump(f,localopen(files[0],"wb"),2)
                     print "Deleted in ",files[0]
                 except:
                     print "Error in deletion in dumping (dedicated) file"    
@@ -296,7 +299,7 @@ class Card :
                 else :
                     print "no dumping file"
             del all_monsters[creature]
-            pickle.dump(all_monsters , open( "CardFiles/all_monsters.sav", "wb" ),2 )
+            pickle.dump(all_monsters , localopen( "CardFiles/all_monsters.sav", "wb" ),2 )
             print "deletion of monster ",  creature, "done"
             shutil.copyfile("CardFiles/all_monsters.sav","CardFiles/recup_monsters.sav")
         #print all_monsters.keys()
@@ -320,12 +323,12 @@ class Card :
             except Exception :
                 print "echec ouverture"
         self.refreshWidget()
-    
+
     def setFile(self,*args):
         self.dumping_file = "CardFiles/"+self.category.get()+"_monsters.sav"
         print "Change dumping file to ",self.dumping_file
         self.monster_type = self.category.get()
-        with open( self.dumping_file, "rb") as f:
+        with localopen( self.dumping_file, "rb") as f:
             Card.monster_list = pickle.load( f)
             f.close()
         self.refreshWidget()
@@ -469,7 +472,7 @@ class Card :
         #Create the type button
         self.category = StringVar(save_zone)
         self.category.set(self.monster_type)
-        choice = [t[t.index("\\")+1:t.index("_monsters.sav")] for t in glob.glob("CardFiles/*_monsters.sav")]
+        choice = [file2name(t,"_monsters.sav") for t in glob.glob("CardFiles/*_monsters.sav")]
         if "recup" in choice:
             choice.remove("recup")
         #print all_monsters.keys()
@@ -668,15 +671,15 @@ mouton = Card("Mouton",1,1)
 #import pickle
 if True:
     try :
-        with open( "CardFiles/all_monsters.sav", "rb") as f:
-            all_monsters = pickle.load( f) 
+        with localopen( "CardFiles/all_monsters.sav", "rb") as f:
+            all_monsters = pickle.load( f)
             #print "load de all_monsters completed"
             f.close()
     except :
         print "pas de fichier all_monsters.sav"
         try:
             shutil.copyfile("CardFiles/recup_monsters.sav","CardFiles/all_monsters.sav")
-            with open( "CardFiles/all_monsters.sav", "rb") as f:
+            with localopen( "CardFiles/all_monsters.sav", "rb") as f:
                 all_monsters = pickle.load( f )
                 print "recup all monsters"
         except:
@@ -692,8 +695,7 @@ if len(all_monsters)<1:
 all_backgrounds = {"shadow":"gameAnimationImages/Card_face_avant_black.gif","aqua":"gameAnimationImages/Card_face_avant_blue.gif"}
 all_type_colors = {"aqua":(0,0,255),"demon":(255,0,0),"nature":(0,255,0),"hord":(100,100,50),"human":(120,155,120),"undead":(100,100,100),"shadow":(255,255,255)}
 white_font_types = ['shadow']
-    
+
     #for m in glob.glob("all*.sav"):
-    #    f = pickle.load(open(m,"r"))
+    #    f = pickle.load(localopen(m,"r"))
     #    all_monsters.update(f)
-    
