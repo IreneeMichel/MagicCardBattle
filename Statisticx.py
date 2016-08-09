@@ -8,6 +8,9 @@ import Player
 import pygame
 import time
 
+from outils import file2name
+from outils import name2file
+
 cards = {}
 files = glob.glob('CardFiles/*.sav')
 
@@ -56,7 +59,7 @@ for e,p in enumerate(nums):
 
 
 blocked_decks = deck_creation.get_blocked_decks()
-playable_decks = [d[d.index("\\")+1:d.index(".dek")].replace("_"," ") for d in glob.glob("Decks/*.dek")]
+playable_decks = [file2name(d,".dek") for d in glob.glob("Decks/*.dek")]
 #playable_decks.remove("default")
 playable_decks.remove("Fried Frenchs")
 all_decks = copy(playable_decks)
@@ -72,7 +75,7 @@ for d in all_decks:
 
 
 for deck in all_decks:
-    with open("Decks\\"+deck.replace(" ","_")+".dek","rb") as f:
+    with open(name2file("Decks",deck,".dek","rb") as f:
         print "\n*** ",deck
         dec = pickle.load(f)
         print dec

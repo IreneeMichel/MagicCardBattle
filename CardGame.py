@@ -33,7 +33,10 @@ def ad(self,li2) :
     return li1
 pygame.sprite.OrderedUpdates.__add__=ad
 
-        
+from outils import file2name
+from outils import name2file
+from outils import localpath
+
 BLACK = 0,0,0
 BROWN = 90,60,20
 
@@ -175,7 +178,7 @@ class Game():
         #from deck_creation import utilisation_list
         import pickle
         #all_decks = pickle.load( open( "all_decks.sav", "rb" ))
-        all_decks = [fname[fname.index("\\")+1:-4].replace("_"," ") for fname in glob.glob("Decks/*.dek")]
+        all_decks = [file2name(fname,'.dek') for fname in glob.glob("Decks/*.dek")]
         #print "possible decks are :",all_decks
         deck = []
         
@@ -192,8 +195,8 @@ class Game():
                 #print "load cards in ",f
                 d = pickle.load( open(f, "rb" ))
                 all_cards.update(d)
-            name="Decks\\"+name.replace(" ","_")+".dek"
-            deck_names=pickle.load( open(name))
+            name=name2file("Decks",name,".dek")
+            deck_names=pickle.load(open(name))
             #print deck_names
             for d,c in deck_names.items():
                 if d != "AvatarImage":
@@ -209,12 +212,12 @@ class Game():
                     #print d
                 else:
                     if n_p == 1:
-                        self.player1_avatar = pygame.image.load(c)
+                        self.player1_avatar = pygame.image.load(localpath(c))
                     elif n_p == 2:
-                        self.player2_avatar = pygame.image.load(c)
+                        self.player2_avatar = pygame.image.load(localpath(c))
         else :
             deck=None
-        
+
         from cardPowers import Camouflage, Provocation
         for d in reversed(deck):
             if (any([b.__class__==Camouflage for b in d.bonus]) or any([b.__class__==Camouflage for b in d.bonus])) and (any([(b.__class__==Provocation) for b in d.bonus]) or any([(b.__class__==DonneArmureAuHero) for b in d.bonus])):

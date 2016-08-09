@@ -8,7 +8,13 @@ from tkMessageBox import showinfo
 from functools import partial
 import glob
 import Card
+
+from outils import file2name
+
 #os.chdir('C:\Users\test\Documents\Programmation\MCB2')
+
+
+
 def getCards(file_):
     all_cards={}
     #print "load cards in ",file_
@@ -17,7 +23,7 @@ def getCards(file_):
     return all_cards
 
 all_cards={}
-for f in glob.glob("CardFiles/*_monsters.sav"):    
+for f in glob.glob("CardFiles/*_monsters.sav"):
     #print "load cards in ",f
     try :
         d = pickle.load( open(f, "rb" ))
@@ -26,7 +32,7 @@ for f in glob.glob("CardFiles/*_monsters.sav"):
     all_cards.update(d)
 
 all_deks={}
-for f in glob.glob("Decks/*.dek"):    
+for f in glob.glob("Decks/*.dek"):
     #print "load cards in ",f
     d = pickle.load( open(f, "r" ))
     all_deks.update(d)
@@ -64,7 +70,7 @@ class DeckCreator():
         self.firstline.add(self.deck_stars)
         self.firstline.add( self.name_wid)
         self.firstline.pack()
-        self.loadDeck("Decks\\default") 
+        self.loadDeck(os.path.join("Decks","default"))
        # def choose():
          #   canvas.create_image(b,0 , anchor=NW, image = p)
         #canvas = Canvas(fenetre, width=189, height=277)
@@ -132,9 +138,9 @@ class DeckCreator():
         if self.stars > 15:
                 showinfo("Careful...","Your deck have too much stars to be used in the Campaign (limit is 15)")
         name=self.name.get().strip().replace(" ","_")+".dek"
-        if name[:6]!="Decks/" and name[:6]!="Decks\\" :
+        if not name.startswith("Decks"):
                 print "deck put in Decks/"
-                name="Decks/"+name
+                name=os.path.join("Decks",name)
         print "save in",name
         import os.path
         if self.loaded and self.loaded!=name and self.loaded.replace('\\','/')!=name.replace('\\','/') and os.path.isfile(name) or (not(self.loaded) and os.path.isfile(name)):
@@ -155,7 +161,7 @@ class DeckCreator():
 
     def openDeck(self,*args) :
         name = self.opening.get()
-        if ("\\" in name and name[name.index("\\")+1:] in blocked_decks) or " (not available)" in name:
+        if (file2name(name) in blocked_decks) or " (not available)" in name:
             lv = int(open("progression","r").read())
             print "La campagne est au niveau ",lv," /7"
             if lv >= 7:
@@ -303,7 +309,7 @@ class DeckCreator():
         if choice :
             lv = int(open("progression","r").read())
             if lv<8:
-              choice=[name+" (not available)"*(name[name.index("\\")+1:] in blocked_decks) for name in choice]
+              choice=[name+" (not available)"*(file2name(name) in blocked_decks) for name in choice]
             open_wid = OptionMenu(self.deck_widg, self.opening,*choice)
             open_wid.pack()
             self.deck_widg.add(open_wid)
