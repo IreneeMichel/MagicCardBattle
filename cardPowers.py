@@ -283,7 +283,7 @@ class Charge(BonusMonstre) :
 
 class NePeutPasAttaquer(BonusMonstre) :
     def getCost(self,monster) :                                                                          
-        return -monster.att/4.-0.2  
+        return -monster.att/4.2-0.2  
     def modifyAttackChoice(self,targets):
         if self.owner in targets  :
             return [self.owner]
@@ -292,7 +292,7 @@ class NePeutPasAttaquer(BonusMonstre) :
 
 class NePeutPasRiposter(BonusMonstre) :
     def getCost(self,monster) :                                                                          
-        return -monster.att/4.+0.1
+        return -monster.att/4.5+0.1
     def afterInvocation(self,monster):
         def defend(oneself,enemy):
 		pass

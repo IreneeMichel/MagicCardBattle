@@ -210,6 +210,7 @@ class Multiplier(Spell) :
     isMultiplier=True
     has_target = False
     def __init__(self,spell1=None,spell2=None) :
+        self.target = None
         if not spell1 :
             spell1=PasDEffet()    # question pour pro de python: trouver pourquoi pas directement dans la signature
         if not spell2:
@@ -252,6 +253,7 @@ class Invocation(Spell) :
         self.level = 1
         self.parent=None
         self.has_target = False
+        self.target = None
     def initWidget(self,master) :
         self.monster.parent=self
         self.widget=Tkinter.PanedWindow(master,orient=Tkinter.HORIZONTAL)

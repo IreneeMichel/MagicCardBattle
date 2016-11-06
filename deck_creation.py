@@ -247,25 +247,16 @@ class DeckCreator():
         self.nb_card=0
         self.firstline.pack_forget()
         self.firstline=PanedWindow(master=self.fenetre1, orient=HORIZONTAL)
-        print "name",self.name.get()
+        print "deck name:",self.name.get()
         self.name_wid=Entry(master=self.firstline, width=30,textvariable=self.name)
         self.stars=0
-        DE=dict([(d.upper(),d) for d in self.deck])
-        modify=[]
         for creature in self.deck :
             if (creature not in all_cards) and creature!="AvatarImage":
-                if creature.upper() in DE :
-                    self.deck[DE[creature.upper()]]=self.deck[creature]
-                    modify.append(creature)
+                if creature.capitalize() in all_cards :
+                    self.deck[creature.capitalize()]=self.deck[creature]
+                    del self.deck[creature]
                 else :
-                    print "ERROR : Missing :",creature
-        for c in modify :
-            print "modified ",c
-            del self.deck[c]
-            try:
-                print self.deck[DE[c.upper()]]
-            except:
-                print "error when capitalize card ",c
+                    print 'ERROR : card not found : "'+creature+'" in ',all_cards.keys()
         for s,n in self.deck.items():
             if s != "AvatarImage":
                 try:

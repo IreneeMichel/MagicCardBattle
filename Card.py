@@ -18,7 +18,7 @@ import glob
 from Bonus import getBonusMenu
 from Spell import getSpellMenu
 
-from outils import file2name
+from outils import file2name,name2file
 from outils import localopen
 
 blocked_decks = ["Nains de Omaghetar","Mauvais Reves","Necroman","Horde","Demon","Vikings","Chateau"]
@@ -258,6 +258,7 @@ class Card :
         self.setFile(*args)
     
     def deck_check(self,creature):
+        import os
         decks = glob.glob(os.path.join("Decks","*.dek"))
         content = []
         for d in decks:
@@ -391,9 +392,9 @@ class Card :
             #print "IMAGE CHANGED"
         else :
             from os import path
-            name=self.name.replace(" ","_")
-            if path.isfile("Cards/"+name+".png") :
-                image_zone.config(text='image can be taken from\n'+"Cards/"+name+".png",background='white',anchor=CENTER)
+            fname=self.name.replace(" ","_")
+            if path.isfile("Cards/"+fname+".png") :
+                image_zone.config(text='image can be taken from\n'+"Cards/"+fname+".png",background='white',anchor=CENTER)
             else :
                 image_zone.config(text='clic to choose image',background='white',anchor=CENTER)
 
@@ -676,6 +677,7 @@ if True:
             #print "load de all_monsters completed"
             f.close()
     except :
+        print "it exists",glob.glob("*/*monster*.sav")
         print "pas de fichier all_monsters.sav"
         try:
             shutil.copyfile("CardFiles/recup_monsters.sav","CardFiles/all_monsters.sav")

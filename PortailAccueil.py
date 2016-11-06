@@ -31,8 +31,9 @@ RED =(255,0,0)
 
 blocked_decks = deck_creation.get_blocked_decks()
 # print glob.glob("*")
-playable_decks = [file2name('Decks/Chateau.dek','.dek') for d in glob.glob("Decks/*.dek")]
+playable_decks = [file2name(d,'.dek') for d in glob.glob("Decks/*.dek")]
 all_decks = copy(playable_decks)
+
 for d in reversed(playable_decks):
     if d in blocked_decks:
         playable_decks.remove(d)
@@ -334,6 +335,7 @@ class Game():
         else:
             list_ =  all_decks
         l = len(list_)
+        print "list_",list_
         for x,i in enumerate(list_):
             angle = (x+1)*360/l
             x_center = int(math.sin(math.radians(angle))*300) + size[0]/2
@@ -390,7 +392,7 @@ class Game():
     def deckCreation(self):
         deck_creation.run()
         global playable_decks
-        playable_decks = [file2name('Decks/Chateau.dek','.dek') for d in glob.glob("Decks/*.dek")]
+        playable_decks = [file2name(d,'.dek') for d in glob.glob("Decks/*.dek")]
         global all_decks
         all_decks = copy(playable_decks)
         for d in reversed(playable_decks):

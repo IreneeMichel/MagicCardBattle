@@ -298,7 +298,7 @@ class Game():
                 font = pygame.font.SysFont('Arial', 15)
                 self.screen.blit(font.render('Target for '+self.player.adv.spell_pending[1].getInlineDescription(), True, (255,0,0)), (200, 100))
                 # print "adv.spell pending"
-            print "game adv spell pending"
+            #print "game adv spell pending"
             self.player.adv.update(events)
             #if hasattr(self.player,"verify_value") :
             #    del self.player.verify_value # on ne peut plus verifier l effet d une action si le joueur influe librement dessus
