@@ -1,18 +1,13 @@
 import os
 import glob
 import pygame
-#import pickle
 import traceback
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-"""
-decks = open("all_decks.sav", "rb")
-decks.close()
-all_decks = pickle.load( open( "all_decks.sav", "rb" ))
-"""
+
 pygame.init()
 
 from copy import copy
-from Card import Card
+from Card import Card,readMonsters
 from cardPowers import *
 from Player import Player,Computer,Computer0
 #from Creature import Creature,AnimatedCreature
@@ -176,8 +171,7 @@ class Game():
         return deck
     def chooseDeck(self,name=None,n_p=0) :
         #from deck_creation import utilisation_list
-        import pickle
-        #all_decks = pickle.load( open( "all_decks.sav", "rb" ))
+
         all_decks = [file2name(fname,'.dek') for fname in glob.glob("Decks/*.dek")]
         #print "possible decks are :",all_decks
         deck = []
@@ -193,10 +187,10 @@ class Game():
             all_cards={}
             for f in glob.glob("CardFiles/all*.sav") :
                 #print "load cards in ",f
-                d = pickle.load( open(f, "rb" ))
+                d = readMonsters(f)
                 all_cards.update(d)
             name=name2file("Decks",name,".dek")
-            deck_names=pickle.load(open(name))
+            deck_names=eval(open(name).read())
             #print deck_names
             for d,c in deck_names.items():
                 if d != "AvatarImage":

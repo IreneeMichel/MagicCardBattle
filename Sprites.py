@@ -238,9 +238,10 @@ class CardInHand(Sprite) :
         #    print "__init__",card.name, "     wait=",wait
         self.content = card
         self.name=card.name
-        if not hasattr(card,"image") and show :
+        if (not hasattr(card,"image") or not card.image) and show :
+            import os
             name=card.name.replace(" ","_")
-            card.image = pygame.image.load("Cards/"+name+".png")
+            card.image = pygame.image.load(os.path.join("Cards",name+".png"))
         if show:                 
             self.image = pygame.transform.scale(card.image,(163, 240))
             self.graphism = copy(card.image)

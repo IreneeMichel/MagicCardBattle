@@ -8,6 +8,8 @@ class BonusMonstre :
     hasTarget=False
     def __init__(self) :
         self.parent=None
+    def constructor(self) :
+        return "cardPowers."+self.__class__.__name__+"()"
     def afterInvocation(self,creature) :
         pass
     def additionalBonus(self,creature) :
@@ -89,6 +91,8 @@ class BonusMonstreWithLevel(BonusMonstre) :
     def __init__(self,level=1) :
         self.level = level
         self.parent=None
+    def constructor(self) :
+        return "cardPowers."+self.__class__.__name__+"("+str(self.level)+")"
     def getDescription(self) :
         return  re.sub(UP,' ',self.__class__.__name__)+' '+ str(self.level)
     def modifyLevel(self,*args) :
@@ -119,6 +123,8 @@ class BonusMonstreWithTwoLevels(BonusMonstre):
         self.level = level
         self.level2 = level2
         self.parent=None
+    def constructor(self) :
+        return "cardPowers."+self.__class__.__name__+"("+str(self.level)+","+str(self.level2)+")"
     def getDescription(self) :
         return  re.sub(UP,' ',self.__class__.__name__)+' '+ str(self.level)
     def modifyLevel(self,*args) :
@@ -161,6 +167,8 @@ class BonusMonstreGivingBonus(BonusMonstre) :
         self.spell=spell
         self.parent=None
         self.restriction=""
+    def constructor(self) :
+        return "cardPowers."+self.__class__.__name__+"("+self.spell.constructor()+")"
     def getDescription(self):
         return re.sub(UP,' ',self.__class__.__name__)+' :\n'+self.spell.getDescription()
     def restrictionChanged(self,*args) :
@@ -191,6 +199,8 @@ class Trigger(BonusMonstre) :
     def __init__(self,spell=PasDEffet()) :
         self.spell=spell
         self.parent=None
+    def constructor(self) :
+        return "cardPowers."+self.__class__.__name__+"("+self.spell.constructor()+")"
     def getDescription(self) :
         return re.sub(UP,' ',self.__class__.__name__)+' :\n'+self.spell.getDescription()
     def getInlineDescription(self) :

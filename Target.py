@@ -5,11 +5,13 @@ Created on Wed Dec 09 16:40:35 2015
 @author: test
 """
 from Tkinter import OptionMenu
-import random
+#import random
 
 class Target():
     def getTarget(self,origin):
         return "choose"
+    def constructor(self) :
+        return "Target."+self.__class__.__name__+"()"
     def getInlineDescription(self,*args):
         return self.__class__.__name__
     def getDescription(self,*args):

@@ -3,7 +3,8 @@ from pygame import image
 import pygame
 import re
 UP=re.compile('(?=[A-Z])')
-import pickle
+import os
+#import pickle
 import shutil
 from Tkinter import PanedWindow,Label,StringVar,Entry,OptionMenu,Button,Spinbox
 from tkMessageBox import askyesno,showinfo
@@ -21,9 +22,21 @@ from Spell import getSpellMenu
 from outils import file2name,name2file
 from outils import localopen
 
-blocked_decks = ["Nains de Omaghetar","Mauvais Reves","Necroman","Horde","Demon","Vikings","Chateau"]
-def get_blocked_decks():
-        return blocked_decks
+def readMonsters(filename) :
+    monsters={}
+    import cardPowers
+    import Spell
+    import Target
+    with open(filename,"rb") as filepickle :
+        for m in filepickle :
+            try :
+                c=eval(m)                
+                monsters[c.name]=c
+            except :
+                print "in file ",filename
+                print "ERROR reading line :",m
+                raise
+    return monsters
 
 def centerText(screen,position,text,fontSize,color,bg=None) :
     font = pygame.font.SysFont("Calibri Bold",fontSize)
@@ -36,50 +49,56 @@ def centerText(screen,position,text,fontSize,color,bg=None) :
     x,y=textImage.get_size()
     screen.blit(textImage,(position[0]-x/2.,position[1]-y/2.))
 
-def remove_widget(o,max_depth=8) :
-    if max_depth==8 : print "debut remove widget"
-    for at in ("parent","master","card") :
-        if hasattr(o,at) :
-            delattr(o,at)
-    if max_depth==8 : print "1 remove widget"
-    for at in ("add_target","addTarget_wid", "widget","content","value","value2",
-          "level_wid","level_wid2","stars","cost","card_win","opening","category",
-          "image","delete","spellContainer","spell_list","restrict" ) :
-       if hasattr(o,at) :
-           #print '  '*(8-max_depth)+' '+at+'  removed'
-           delattr(o,at)
-    if max_depth==8 : print "2 remove widget"
-    for o2n in dir(o) :
-        o2=getattr(o,o2n)
-        cn=o2.__class__.__name__
-        if not (cn  in ["instancemethod"]) and not ("__"  in o2n) and (not hasattr(o2.__class__,o2n)):
-            print '  '*(8-max_depth)+o2n+ '    '+cn
-        if type(o2)==type([]) :
-            #print o2n," is list",o2
-            for o3 in o2 :
-                if type(o3)==type(Card("Troll gris",4,4)) and max_depth>0 :
-                    remove_widget(o3,max_depth-1)
-        if type(o2)==type(Card("Troll gris",4,4)) and max_depth>0 and o2n!="card" :
-            remove_widget(o2,max_depth-1)
-    if max_depth==8 : print "fin remove widget"
+#def remove_widget(o,max_depth=8) :
+#    if max_depth==8 : print "debut remove widget"
+#    for at in ("parent","master","card") :
+#        if hasattr(o,at) :
+#            delattr(o,at)
+#    if max_depth==8 : print "1 remove widget"
+#    for at in ("add_target","addTarget_wid", "widget","content","value","value2",
+#          "level_wid","level_wid2","stars","cost","card_win","opening","category",
+#          "image","delete","spellContainer","spell_list","restrict" ) :
+#       if hasattr(o,at) :
+#           #print '  '*(8-max_depth)+' '+at+'  removed'
+#           delattr(o,at)
+#    if max_depth==8 : print "2 remove widget"
+#    for o2n in dir(o) :
+#        o2=getattr(o,o2n)
+#        cn=o2.__class__.__name__
+#        if not (cn  in ["instancemethod"]) and not ("__"  in o2n) and (not hasattr(o2.__class__,o2n)):
+#            print '  '*(8-max_depth)+o2n+ '    '+cn
+#        if type(o2)==type([]) :
+#            #print o2n," is list",o2
+#            for o3 in o2 :
+#                if type(o3)==type(Card("Troll gris",4,4)) and max_depth>0 :
+#                    remove_widget(o3,max_depth-1)
+#        if type(o2)==type(Card("Troll gris",4,4)) and max_depth>0 and o2n!="card" :
+#            remove_widget(o2,max_depth-1)
+#    if max_depth==8 : print "fin remove widget"
  
                
 class Card :
-    def __init__(self,name,att,pv) :
+    def __init__(self,name="Nom monstre",att=1,pv=1,bonus=None,photo='',monster_type="unknown") :
         self.name=name
         self.att = att
         self.pv = pv
-        self.bonus=[]
-        self.is_spell=False
-        self.photofile=None
-        self.dumping_file = "CardFiles/unknown_monsters.sav"
-        self.monster_type = "unknown"
-        global all_monsters
+        if not bonus :
+            bonus=[] # a cause du fonctionnement etrange de python pour les valeurs d arguments [] par defaut
+        self.bonus=bonus
+        self.is_spell=(pv<1)
+        self.photofile=photo
+        self.dumping_file = os.path.join("CardFiles",monster_type+"_monsters.sav")
+        self.monster_type = monster_type
+        #global all_monsters
         name=self.name.replace(" ","_")
-        try :
-            self.image = image.load("Card/"+name+".png")
-        except :
-            self.image=None
+#        try :
+#            self.image = image.load(os.path.join("Card",name+".png"))
+#        except :
+#            self.image=None
+    def constructor(self) :
+        return ('Card("'+self.name+'",'+str(self.att)+","+str(self.pv)+
+            ",["+",".join([p.constructor() for p in self.bonus])+"],"+
+             repr(self.photofile)+",'"+self.monster_type+"')")
     def takePlace(self,*ar1,**ars) :
         pass
     def addBonus(self,bonus) :
@@ -157,7 +176,9 @@ class Card :
             return False
         for b1,b2 in [("Insaisissable","Provocation"),("Insaisissable","Inciblable"),
                       ("Camouflage","Provocation"),("NePeutPasAttaquer","ALaPlaceDeLAttaque"),
-                    ("GardienDeVie","QuandIlEstBlesse")] :
+                    ("GardienDeVie","QuandIlEstBlesse"),("Charge","NePeutPasRisposter"),
+                    ("NePeutPasRiposter","NePeutPasAttaquer"),("NePeutPasRiposter","CoutReduit"),
+                    ("CoutReduit","NePeutPasAttaquer")] :
             if b1 in nb and b2 in nb :
                 showinfo("Not Allowed","You can't have this combination of powers: {0} and {1}".format(b1,b2))
                 return False
@@ -172,38 +193,28 @@ class Card :
         pygame.image.save(image,"Cards/"+name+".png")
         print "save image done"
         # now new monster
-        global all_monsters
-        with localopen(self.dumping_file,"rb") as filepickle :
-            loaded_monsters = pickle.load(filepickle)
-            filepickle.close()
+        loaded_monsters=readMonsters(self.dumping_file)
         #print "Monsters from file = ",file_monsters
-        remove_widget(self)
+        #remove_widget(self)
         loaded_monsters[self.name] = self
         #print "Monsters from file (after) = ",file_monsters
+        global all_monsters
         all_monsters.update(loaded_monsters)
-        print "window reinit done"
-        with localopen(self.dumping_file,"wb") as filepickle :
-            pickle.dump(loaded_monsters , filepickle,2 )
-        with localopen(self.dumping_file,"rb") as filepickle :
-            print "now in file", self.dumping_file,":",pickle.load(filepickle).keys()
-            filepickle.close()
-        with localopen("CardFiles/all_monsters.sav", "wb" ) as f :
-            pickle.dump(all_monsters , f ,2)
-            f.close()
-        import os.path
-        if not os.path.isfile("CardFiles/recup_monsters.sav") or len(all_monsters)>=len(pickle.load(open("CardFiles/recup_monsters.sav","rb"))):
-            shutil.copyfile("CardFiles/all_monsters.sav","CardFiles/recup_monsters.sav")
+        #print "window reinit done"
+        with open(self.dumping_file,"wb") as savefile :
+            savefile.write("\n".join([m.constructor() for m in loaded_monsters.values()]))
+#        with open(self.dumping_file+".old","rb") as filepickle :
+#            print "now in file", self.dumping_file,":",pickle.load(filepickle).keys()
+#            filepickle.close()
+        with open(os.path.join("CardFiles","all_monsters.sav"), "wb" ) as f :
+            f.write("\n".join([m.constructor() for m in all_monsters.values()]))
+        recupfile=os.path.join("CardFiles","recup_monsters.sav")
+        if (not os.path.isfile(recupfile)) or len(all_monsters)>=len(open(recupfile,'r').readlines()):
+            with open(recupfile, "wb" ) as f :
+                f.write("\n".join([m.constructor() for m in all_monsters.values()]))
             print "SAVED in all_monsters.sav and recup_monsters.sav"
         else:
-            print len(pickle.load(localopen("CardFiles/recup_monsters.sav","rb")))
-            import time
-            print "sleep"
-            time.sleep(1) 
-            shutil.copyfile("CardFiles/recup_monsters.sav","CardFiles/all_monsters.sav")
-            pickle.dump(all_monsters , localopen( "CardFiles/all_monsters.sav", "wb" ),2 )
-            all_monsters = pickle.load(localopen( "CardFiles/all_monsters.sav", "rb" ))
-            print "ERROR IN ALL MONSTERS"
-
+            print "WARNING : Recup monster file bigger than all monsters file"
 
     def initWidget(self,fenetre) :
         #print "init"
@@ -212,17 +223,14 @@ class Card :
         self.refreshWidget()
     def Open(self,*args) :
         print "open monster ",  self.opening.get()
-        lv = int(localopen("progression","r").read())
-        deck_with_card =  self.deck_check(self.opening.get())
-        if not(lv<8 and any([name2file("Decks",d,".dek") in deck_with_card for d in blocked_decks])):
+        #deck_with_card =  self.deck_check(self.opening.get())
+        if True :
             self.card_win.pack_forget()
             fenetre=self.card_win.master
             #for i in Card.monster_list.keys() :
             #    print i, Card.monster_list[i].getInlineDescription()
             self = Card.monster_list[self.opening.get()]
             print self.name +" loaded"
-            if not("CardFiles" in self.dumping_file):
-                self.dumping_file = os.path.join("CardFiles",self.dumping_file)
             if self.pv<1 :
                 self.is_spell=True
             else :
@@ -232,11 +240,7 @@ class Card :
                 b.parent = self.bonus
                 b.card = self
             self.initWidget(fenetre)
-        else:
-            self.opening.set("Open")
-            showinfo("Impossible","You can't open this card as it is in a deck of the Campaign")
-        #self.refreshWidget()
-        
+         
     def clicDelete(self,*args) :
         #self.card_win.pack_forget()
         #fenetre=self.card_win.master
@@ -247,63 +251,50 @@ class Card :
         """
         
         creature= self.delete.get()
-        if askyesno('Beware!', 'Confirm the deletion of '+creature+"?"):
-            check = self.deck_check(creature)
-            if not(check):                
-                self.deleteCreature(creature)
-            else:
-                showinfo("Erreur","Impossible de detruire la creature car elle est dans "+",".join(check))
+        from deck_creation import blocked_creature
+        if creature in blocked_creature :
+            print "not possible : creature in campaign"
+            self.delete.set('delete')
+            return
+        if askyesno('Beware!', 'Confirm the deletion of '+creature+"?"):                
+            self.deleteCreature(creature)
         self.card_win.pack_forget()
         #self.initWidget(fenetre)
         self.setFile(*args)
     
-    def deck_check(self,creature):
-        import os
-        decks = glob.glob(os.path.join("Decks","*.dek"))
-        content = []
-        for d in decks:
-            print "deck",d
-            with localopen(d,"r") as fil: # problem with python : I wanted to use "rb"
-                deck = pickle.load(fil)
-                if creature in deck.keys():
-                    content.append(d)
-        return content
 
     def deleteCreature(self,creature) :
+        dm=None
         global all_monsters
         if not creature in all_monsters :
-            print creature," not in all_monsters"
+            print creature," is not in all_monsters"
             try :
-                f="CardFiles/"+self.category.get()+"_monsters.sav"
-                d = pickle.load(localopen(f,"rb"))
-                del d[creature]
-                pickle.dump(d,localopen(f,"wb"),2)
+                fm=os.path.join("CardFiles",self.category.get()+"_monsters.sav")
+                dm = readMonsters(fm)
             except:
-                pass
+                print "error reading file ",fm
         else :
             print "delete monster ",  creature
-            if hasattr(all_monsters[creature],"dumping_file") :
-                files = glob.glob(all_monsters[creature].dumping_file)
-            else:
-                files=None
-            if files :
-                f = pickle.load(localopen(files[0],"rb"))
-                try:
-                    del f[creature]
-                    pickle.dump(f,localopen(files[0],"wb"),2)
-                    print "Deleted in ",files[0]
-                except:
-                    print "Error in deletion in dumping (dedicated) file"    
-            else :
-                if hasattr(all_monsters[creature],"dumping_file") :
-                    print all_monsters[creature].dumping_file," not found"
-                else :
-                    print "no dumping file"
+            try :
+                fm = os.path.join("CardFiles",(all_monsters[creature].monster_type)+"_monsters.sav")
+                dm = readMonsters(fm)
+            except:
+                print "ERROR : no type for ",creature, " or read error"
             del all_monsters[creature]
-            pickle.dump(all_monsters , localopen( "CardFiles/all_monsters.sav", "wb" ),2 )
+            fall=os.path.join("CardFiles","all_monsters.sav") 
+            with open(fall,"wb") as savefile :
+                savefile.write("\n".join([m.constructor() for m in all_monsters.values()]))            
             print "deletion of monster ",  creature, "done"
-            shutil.copyfile("CardFiles/all_monsters.sav","CardFiles/recup_monsters.sav")
-        #print all_monsters.keys()
+            shutil.copyfile(fall,"CardFiles/recup_monsters.sav")
+        if dm and creature in dm :
+            del dm[creature]
+            with open(fm,"wb") as savefile :
+                savefile.write("\n".join([m.constructor() for m in dm.values()]))
+            print "deletion of monster ",  creature, " in ",fm," done"                
+        else :
+            print creature," not found in dedicated file"
+            
+            
         
     def choosePhoto(self,*args) :
         from tkFileDialog import askopenfilename
@@ -326,12 +317,11 @@ class Card :
         self.refreshWidget()
 
     def setFile(self,*args):
-        self.dumping_file = "CardFiles/"+self.category.get()+"_monsters.sav"
+        self.dumping_file = os.path.join("CardFiles",self.category.get()+"_monsters.sav")
         print "Change dumping file to ",self.dumping_file
         self.monster_type = self.category.get()
-        with localopen( self.dumping_file, "rb") as f:
-            Card.monster_list = pickle.load( f)
-            f.close()
+        Card.monster_list=readMonsters(self.dumping_file)
+        #from cardPowers import *
         self.refreshWidget()
 
     def refreshWidget(self) :
@@ -347,8 +337,12 @@ class Card :
         name_zone=PanedWindow(self.card_win, orient=HORIZONTAL)
         name = StringVar() 
         name.set(self.name)
+        from deck_creation import blocked_creature
         def modifName(*args) :
+            old = self.name in blocked_creature
             self.name=name.get()
+            if old or self.name in blocked_creature :
+                self.refreshWidget()
         name.trace("w", modifName)
         name_wid=Entry(name_zone, width=30,textvariable=name)
         name_wid.pack()
@@ -442,10 +436,13 @@ class Card :
         
         #Create save zone
         save_zone = PanedWindow(self.card_win, orient=HORIZONTAL)
-        if self.monster_type != "all":
+        lv = int(localopen("progression","r").read())
+        if self.monster_type != "all" and not(lv<8 and self.name in blocked_creature) :
             save_wid = Button(save_zone, text="Save", command=self.postAndSave)
+        elif self.monster_type != "all" : 
+            save_wid = Button(save_zone, text="creature in campaign", command=None)
         else:
-            save_wid = Button(save_zone, text="---", command=None)
+            save_wid = Button(save_zone, text="nead type", command=None)
         save_wid.pack()
         #Create the open button
         save_zone.pack()        
@@ -473,7 +470,7 @@ class Card :
         #Create the type button
         self.category = StringVar(save_zone)
         self.category.set(self.monster_type)
-        choice = [file2name(t,"_monsters.sav") for t in glob.glob("CardFiles/*_monsters.sav")]
+        choice = [file2name(t,"_monsters.sav.old") for t in glob.glob("CardFiles/*_monsters.sav.old")]
         if "recup" in choice:
             choice.remove("recup")
         #print all_monsters.keys()
@@ -494,6 +491,7 @@ class Card :
         att.set(str(self.att))
         pv=StringVar() ; pv.set(str(self.pv))
         def modifiedAttPv(*args) :
+            print "modifiedAttPv"
             self.pv=int(pv.get())
             if self.pv<1 and self.is_spell==False :
                 if len(self.bonus)==0 :
@@ -672,18 +670,15 @@ mouton = Card("Mouton",1,1)
 #import pickle
 if True:
     try :
-        with localopen( "CardFiles/all_monsters.sav", "rb") as f:
-            all_monsters = pickle.load( f)
-            #print "load de all_monsters completed"
-            f.close()
+        all_monsters=readMonsters(os.path.join("CardFiles","all_monsters.sav"))
     except :
         print "it exists",glob.glob("*/*monster*.sav")
-        print "pas de fichier all_monsters.sav"
+        print "pas de fichier CardFiles/all_monsters.sav"
         try:
+            #from cardPowers import *
             shutil.copyfile("CardFiles/recup_monsters.sav","CardFiles/all_monsters.sav")
-            with localopen( "CardFiles/all_monsters.sav", "rb") as f:
-                all_monsters = pickle.load( f )
-                print "recup all monsters"
+            all_monsters=readMonsters("CardFiles/all_monsters.sav")
+            print "recup all monsters"
         except:
             print " pas de recuperation"           
             all_monsters = {"Troll gris":troll}
@@ -701,3 +696,8 @@ white_font_types = ['shadow']
     #for m in glob.glob("all*.sav"):
     #    f = pickle.load(localopen(m,"r"))
     #    all_monsters.update(f)
+#import pickle
+#import os
+#os.chdir("C:\\Users\\Enfants\\Documents\\MCB_nov2016")
+#a=pickle.load(open("CardFiles\\greek_monsters.sav","rb"))
+#open("CardFiles\\greek_monsters.sav","w").write("\n".join([m.constructor() for m in a.values()]))

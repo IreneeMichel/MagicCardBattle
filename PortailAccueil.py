@@ -17,7 +17,7 @@ import deck_creation
 import Player
 
 import CardGame
-import pickle
+#import pickle
 
 from types import MethodType
 
@@ -29,7 +29,7 @@ GREEN = (0,200,20)
 BLACK = (0,0,0)
 RED =(255,0,0)
 
-blocked_decks = deck_creation.get_blocked_decks()
+blocked_decks = deck_creation.blocked_decks
 # print glob.glob("*")
 playable_decks = [file2name(d,'.dek') for d in glob.glob("Decks/*.dek")]
 all_decks = copy(playable_decks)
@@ -50,11 +50,10 @@ if len(glob.glob("Cards/*.png"))<10 :
     execfile('./TouchMonsterFiles.py')
 
 all_cards = {}
+from Card import readMonsters
 for fn in glob.glob("CardFiles/all*.sav") :
-    #print "load cards in ",fn
-    f=open(fn, "rb" )
-    d = pickle.load(f)
-    f.close()
+    #print "load cards in ",f
+    d = readMonsters(fn)
     all_cards.update(d)
 
 
@@ -140,10 +139,14 @@ class DeckButton(Button):
         font_size = 36
 
         with open(name2file("Decks",deck_name,".dek"),"r") as fil:
-            deck = pickle.load(fil)
+            deck = eval(fil.read())
             del deck["AvatarImage"]
-            [all_cards[k[0]].getCost()*k[1] for k in deck.items()]
-            stars = sum([all_cards[k[0]].getStars()*k[1] for k in deck.items()] )
+            [all_cards[k[0]].getCost() for k in deck.items()] # a cause de RaleDAgonie qui a besoin d un appel a getcost avant
+            try :
+                stars = sum([all_cards[k[0]].getStars()*k[1] for k in deck.items()] )
+            except :
+                print " in ",all_cards.keys(), " looking for ",deck.keys()
+                raise
             if stars>15 and len(argus)!=2:
                 self.accessible = False
                 color = RED

@@ -11,9 +11,11 @@ class Spell :
     positive = False
     isMultiplier=False
     target_locked=False
-    def __init__(self) :
+    def __init__(self,target = Target.UneCibleAuChoix()) :
         self.parent=None
-        self.target = Target.UneCibleAuChoix()
+        self.target = target
+    def constructor(self) :
+        return "cardPowers."+self.__class__.__name__+"("+self.target.constructor()+")"
     def getDescription(self):
         if self.has_target:
             return self.getSpellDescription()+" "+self.target.getDescription()
@@ -113,11 +115,13 @@ class PasDEffet(Spell) :
 
 class SpellWithLevel(Spell) :
     hasLevel=True
-    def __init__(self,level=1) :        
+    def __init__(self,level=1,target=Target.UneCibleAuChoix()) :        
         self.level=level
         self.parent=None
         #from Target import UneCibleAuChoix
-        self.target = Target.UneCibleAuChoix()
+        self.target = target
+    def constructor(self) :
+        return "cardPowers."+self.__class__.__name__+"("+str(self.level)+","+self.target.constructor()+")"
     def getSpellDescription(self) :
         return re.sub(UP,' ',self.__class__.__name__)+' '+str(self.level)   
     def modifyLevel(self,*args) :
@@ -154,11 +158,14 @@ class SpellWithLevel(Spell) :
 
 class SpellWithTwoLevels(Spell) :
     hasLevel=True
-    def __init__(self,level=1,level2=1) :        
+    def __init__(self,level=1,level2=1,target=Target.UneCibleAuChoix()) :        
         self.level=level
         self.level2 = level2
-        self.target = Target.UneCibleAuChoix()
+        self.target = target
         self.parent=None
+    def constructor(self) :
+        return ("cardPowers."+self.__class__.__name__+"("+str(self.level)+","+
+               str(self.level)+","+self.target.constructor()+")")
     def getSpellDescription(self) :
         return re.sub(UP,' ',self.__class__.__name__)+' '+str(self.level)+"/"+str(self.level2)
     def modifyLevel(self,*args) :
@@ -218,6 +225,9 @@ class Multiplier(Spell) :
         self.parent=None
         self.spell1=spellContainer(spell1)
         self.spell2=spellContainer(spell2)
+    def constructor(self) :
+        return ("cardPowers."+self.__class__.__name__+"("+self.spell1.spell.constructor()+","
+              +self.spell2.spell.constructor()+")")
     def initWidget(self,master):
         for s in [self.spell1,self.spell2] :
             s.spell.parent=s
@@ -245,15 +255,18 @@ class Multiplier(Spell) :
 class Invocation(Spell) :
     isTrigger=True
     hasLevel=False
-    def __init__(self,monster=None) :
+    def __init__(self,level=1,monster=None) :
         if not monster :
-            from Card import troll
-            monster=troll
+            from Card import Card
+            monster=Card('Mouton',1,1)
         self.monster=monster
-        self.level = 1
+        self.level = level
         self.parent=None
         self.has_target = False
         self.target = None
+    def constructor(self) :
+        return ("Spell."+self.__class__.__name__+"("+str(self.level)+
+                ","+self.monster.constructor()+")")
     def initWidget(self,master) :
         self.monster.parent=self
         self.widget=Tkinter.PanedWindow(master,orient=Tkinter.HORIZONTAL)
@@ -380,15 +393,18 @@ class Transformation(Spell) :
     hasLevel=False
     has_target = True
     positive = False
-    def __init__(self,monster=None) :
+    def __init__(self,monster=None,target=Target.UneCibleAuChoix()) :
         if not monster :
-            from Card import mouton
-            monster=mouton
+            from Card import Card
+            monster=Card('Mouton',1,1)
         self.monster=monster
         self.level = 1
         self.monster.parent=self
         self.parent=None
-        self.target = Target.UneCibleAuChoix()
+        self.target = target
+    def constructor(self) :
+        return ("Spell."+self.__class__.__name__+"("+self.monster.constructor()+","+
+            self.target.constructor()+")")
     def initWidget(self,master) :
         self.widget=Tkinter.PanedWindow(master,orient=Tkinter.HORIZONTAL)
         self.content=Tkinter.StringVar()
@@ -459,6 +475,9 @@ class ConfereBonus(Spell) :
         self.spell=spell
         self.parent=None
         self.positive=True
+    def constructor(self) :
+        return ("Spell."+self.__class__.__name__+"("+self.spell.constructor()+","+
+            self.target.constructor()+")")
     def getCost(self) :
         from Card import troll
         if self.spell.getCost(troll)<0. :

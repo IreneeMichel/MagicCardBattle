@@ -1,5 +1,5 @@
 from Tkinter import *
-import pickle
+#import pickle
 import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -7,40 +7,33 @@ from tkMessageBox import showinfo
 
 from functools import partial
 import glob
-import Card
+#import Card
 
 from outils import file2name
 
 #os.chdir('C:\Users\test\Documents\Programmation\MCB2')
 
+blocked_decks = ["Nains de Omaghetar","Mauvais Reves","Necroman","Horde","Demon","Vikings","Chateau"]
 
 
-def getCards(file_):
-    all_cards={}
-    #print "load cards in ",file_
-    d = pickle.load( open(file_, "rb" ))
-    all_cards.update(d)
-    return all_cards
-
+from Card import readMonsters
 all_cards={}
 for f in glob.glob("CardFiles/*_monsters.sav"):
     #print "load cards in ",f
     try :
-        d = pickle.load( open(f, "rb" ))
+        d = readMonsters(f)
     except :
         print "#### ERROR with ",f
     all_cards.update(d)
 
-all_deks={}
-for f in glob.glob("Decks/*.dek"):
-    #print "load cards in ",f
-    d = pickle.load( open(f, "r" ))
-    all_deks.update(d)
+#all_deks={}
+#for f in glob.glob("Decks/*.dek"):
+#    #print "load cards in ",f
+#    d = pickle.load( open(f, "r" ))
+#    all_deks.update(d)
 
 #print "all_cards = ",all_cards
 #print "all_deks = ",all_deks
-blocked_decks = Card.get_blocked_decks()
-get_blocked_decks = Card. get_blocked_decks
 #all_cards = pickle.load( open( "all_monsters.sav", "rb" ))
 #all_decks=pickle.load( open( "all_decks.sav", "rb" ))
 
@@ -51,8 +44,8 @@ class DeckCreator():
     def __init__(self,fenetre):
         
         self.galeries = []
-        
-        self.all_cards_open = getCards("CardFiles/unknown_monsters.sav")
+        from Card import readMonsters
+        self.all_cards_open = readMonsters("CardFiles/unknown_monsters.sav")
         self.refreshCardSelector(fenetre)
         
         self.deck={}
@@ -138,17 +131,24 @@ class DeckCreator():
         if self.stars > 15:
                 showinfo("Careful...","Your deck have too much stars to be used in the Campaign (limit is 15)")
         name=self.name.get().strip().replace(" ","_")+".dek"
+        import os
+        lv = int(open("progression","r").read())
+        if  lv<8 and os.path.basename(self.name.get()) in blocked_decks :
+            print "deck protege pour la campagne"
+            return
+        else :
+            print self.name.get(),blocked_decks
         if not name.startswith("Decks"):
                 print "deck put in Decks/"
                 name=os.path.join("Decks",name)
         print "save in",name
         import os.path
-        if self.loaded and self.loaded!=name and self.loaded.replace('\\','/')!=name.replace('\\','/') and os.path.isfile(name) or (not(self.loaded) and os.path.isfile(name)):
+        if self.loaded and self.loaded!=os.path.basename(name) and self.loaded!=name and self.loaded.replace('\\','/')!=name.replace('\\','/') and os.path.isfile(name) or (not(self.loaded) and os.path.isfile(name)):
                 print "loaded ",self.loaded,"  cannot overwrite",name," !"
                 showinfo("Impossible","You cannot overwrite an existing deck")
                 return
             #name=self.name_wid.get()
-        pickle.dump(self.deck , open( name, "wb" ) )
+        open( name, "wb" ).write(repr(self.deck))
         print self.deck," saved"
         self.deck={} ; self.name.set("") ; self.loaded=None
         self.showDeck()        
@@ -168,28 +168,6 @@ class DeckCreator():
                 self.loadDeck(name)
             else:
                 print "Deck is not accessible"
-            """
-            def validate(*args):
-                if entree.get() == "Gandalf":
-                    name=self.opening.get()
-                    self.loadDeck(name)
-                else:
-                    #self.opening.set("Open another deck")
-                    #self.opening.trace("w",self.openDeck)
-                    pass
-                new_fenetre.destroy()
-                
-                    
-            new_fenetre = Tk()
-            value = StringVar() 
-            value.set("texte par defaut")
-            label = Label(new_fenetre, text="Password (vous l'obtenez a la fin de la campagne):")
-            label.pack()
-            entree = Entry(new_fenetre, textvariable="string", width=45)
-            entree.pack()
-            button = Button(new_fenetre, text="Ok", command=validate,width=40)
-            button.pack()
-            """
         else:
             name=self.opening.get()
             self.loadDeck(name)
@@ -198,7 +176,7 @@ class DeckCreator():
     def changeFile(self,*args):
         
         name = self.files.get()
-        self.all_cards_open = getCards(name)
+        self.all_cards_open = readMonsters(name)
         for galerie in self.galeries:
             galerie.pack_forget()
         self.galeries = []
@@ -217,24 +195,22 @@ class DeckCreator():
         self.loaded=name
         print " load ",name
         try :
-            deck=pickle.load( open(name))
+            deck= eval(open(name).read())
             print "deck is",deck
         except :
-            deck={}
+            if "Decks" not in name :
+                deck= eval(open(os.path.join("Decks",name)).read())
+            else:
+                deck={}
         self.deck=deck
-        try:
-            self.showDeck()
-        except:
-            print "error with showDeck"
-            self.verifyDeck()
-    def verifyDeck(self) :
-        pass
-        #print "verify deck"
-        #for y in all_decks[self.opening.get()].keys():
-        #    try:
-        #        self.deck[y]
-        #    except:
-        #        pass
+        self.showDeck()
+#        try:
+#            self.showDeck()
+#        except:
+#            print "error with showDeck"
+#            self.verifyDeck()
+        
+
     def showDeck(self) :
         print "showDeck"
         if hasattr(self,"deck_widg") :
@@ -264,7 +240,7 @@ class DeckCreator():
                     self.stars+=all_cards[s].getStars()*n
                 except:
                     del self.deck[s]
-                    print "error with ",s
+                    print "error with ",s,n
         print"stars",self.stars
         self.deck_stars=Label(master=self.firstline, text=self.stars)
         self.firstline.add(self.deck_stars)
@@ -296,11 +272,11 @@ class DeckCreator():
         self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text=self.nb_card))
         self.opening = StringVar(self.deck_widg)
         self.opening.set("Open another deck")
-        choice = [fname[0:-4].replace("_"," ") for fname in glob.glob("Decks/*.dek")]
+        choice = [os.path.basename(fname)[0:-4].replace("_"," ") for fname in glob.glob("Decks/*.dek")]
         if choice :
             lv = int(open("progression","r").read())
             if lv<8:
-              choice=[name+" (not available)"*(file2name(name) in blocked_decks) for name in choice]
+              choice=[name+" (not available)"*(name in blocked_decks) for name in choice]
             open_wid = OptionMenu(self.deck_widg, self.opening,*choice)
             open_wid.pack()
             self.deck_widg.add(open_wid)
@@ -338,58 +314,29 @@ class DeckCreator():
         self.deck_widg.pack()
         self.firstline.pack()
 
-def select(deck_name):
-    pass
-    #all_cards = pickle.load( open( "all_monsters.sav", "rb" ))
 
-
-#def utilisation_dict():
-#        all_decks = pickle.load( open( "all_decks.sav", "rb" ))
-#        print type(all_decks)
-#        has_choosen=None
-#        fenetre=Tk()
-#        list_decks=PanedWindow(fenetre, orient=VERTICAL)
-#        global i
-#        for i in all_decks:
-#            list_decks.add(Button(master=list_decks,command=partial(select,i),text=i))
-#        list_decks.pack()
-
-
-def change_to_list():
-    all_decks = pickle.load( open( "all_decks.sav", "rb" ))
-    all_cards = pickle.load( open( "all_monsters.sav", "rb" ))
-    global a
-    selected_deck=[]
-    for d,c in all_decks[deck_name].items():
-        k=all_cards[d]
-        for v in range(c):
-             selected_deck.append(k)
-    a=selected_deck
-    return selected_deck
+blocked_creature=[]
+for i in blocked_decks :
+    df=os.path.join("Decks",i.replace(" ","_")+".dek")
+    try :
+        with open(df,"r") as fil: # problem with python : I wanted to use "rb"
+            deck = eval(fil.read())
+            blocked_creature=blocked_creature+deck.keys()
+    except :
+        print "ERROR ",df," not found"
     
-#def utilisation_list(name=None):
-#        all_cards = pickle.load( open( "all_monsters.sav", "rb" ))
-#        print type(all_decks)
-#        has_choosen=None
-#        fenetre=Tk()
-#        print '1 '
-#        list_decks=PanedWindow(fenetre, orient=VERTICAL)
-#        print '1 '
-#        global i
-#        print '1 '
-#        for i in all_decks:
-#            list_decks.add(Button(master=list_decks,command=partial(select,i),text=i))
-#        list_decks.pack()
-#        print '1 '
-#        a=None
-#        s=i
-#        while s<10000000:
-#            if a:
-#                return a
-#                fenetre.destroy()
-#                break
-#            s+=1
-#        fenetre.destroy()
+    
+#def checkSave(creaturename):
+#        import os
+#        decks = glob.glob(os.path.join("Decks","*.dek"))
+#        content = []
+#        for d in decks:
+#            print "deck",d
+#            with localopen(d,"r") as fil: # problem with python : I wanted to use "rb"
+#                deck = pickle.load(fil)
+#                if creature in deck.keys():
+#                    content.append(d)
+#        return content
 
 def run():
     fenetre = Tk()

@@ -5,7 +5,7 @@ from Bonus import BonusMonstre,BonusMonstreWithLevel,BonusMonstreWithTwoLevels
 from Bonus import Trigger,BonusMonstreGivingBonus
 #import pygame
 from Sprites import Sprite
-#from Target import Target
+from Target import *
 from Creature import Creature,AnimatedCreature
 from copy import copy
 #from Spell import possibleAsSpell,listMultiplier  # list of spells to be completed
@@ -283,7 +283,7 @@ class Charge(BonusMonstre) :
 
 class NePeutPasAttaquer(BonusMonstre) :
     def getCost(self,monster) :                                                                          
-        return -monster.att/4.2-0.2  
+        return -monster.att/4.3-0.2  
     def modifyAttackChoice(self,targets):
         if self.owner in targets  :
             return [self.owner]
