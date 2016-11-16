@@ -49,7 +49,12 @@ class Game():
             from win32api import GetSystemMetrics
             dim=(GetSystemMetrics(0),GetSystemMetrics(1))
         except :
-            dim=(1000,600)
+             try :
+                  import gtk
+                  dim=(gtk.gdk.screen_width()-10,gtk.gdk.screen_height()-50)
+             except :
+                  print "bad display !"
+                  dim=(1000,600)
         self.height = int(dim[1]*1.)
         self.width = int(dim[0]*1.)
         self.screen = pygame.display.set_mode((self.width,self.height))

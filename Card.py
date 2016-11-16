@@ -470,7 +470,7 @@ class Card :
         #Create the type button
         self.category = StringVar(save_zone)
         self.category.set(self.monster_type)
-        choice = [file2name(t,"_monsters.sav.old") for t in glob.glob("CardFiles/*_monsters.sav.old")]
+        choice = [file2name(t,"_monsters.sav") for t in glob.glob("CardFiles/*_monsters.sav")]
         if "recup" in choice:
             choice.remove("recup")
         #print all_monsters.keys()
