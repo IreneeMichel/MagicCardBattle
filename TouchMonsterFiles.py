@@ -5,7 +5,7 @@ Created on Sat Apr 23 13:26:15 2016
 @author: enfants
 """
 import os
-import pickle
+#import pickle
 import glob
 #import types
 #import time
@@ -68,28 +68,25 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 #         print "* "+n
 #         searchPower(m)
 #     pickle.dump(mobs,open(f,"wb"))
+from Card import readMonsters
 
 print "nettoyage unknown_monsters.sav"
-with open( "CardFiles/unknown_monsters.sav", "rb") as f:
-     monsters = pickle.load( f)
-
+monsters = readMonsters(os.path.join("CardFiles","unknown_monsters.sav"))
 for f in glob.glob("CardFiles/*_monsters.sav"):
-     if f in ("CardFiles\\unknown_monsters.sav","CardFiles\\all_monsters.sav","CardFiles\\recup_monsters.sav") :
+     if ("unknown_monsters.sav" in f) or ("all_monsters.sav" in f) or ("recup_monsters.sav" in f) :
          continue
      print "cards in ",f
-     with open(f, "rb") as f:
-         good = pickle.load( f)
+     good = readMonsters(f)
      for m in good :
          if m in monsters :
              print m
              del monsters[m]
 
-pickle.dump(monsters,open(  "CardFiles/unknown_monsters.sav","wb"))   
+open(os.path.join("CardFiles","unknown_monsters.sav"),"w").write("\n".join([m.constructor() for m in monsters.values()]))
 
 
-f = open("CardFiles/all_monsters.sav","rb")
-all_monsters = pickle.load( f)
-f.close()
+all_monsters = readMonsters(os.path.join("CardFiles","all_monsters.sav"))
+
 #         monsters.update(good)
 #    
 #    pickle.dump(monsters,open(  "CardFiles/all_monsters.sav","wb"))   
@@ -98,11 +95,10 @@ print "recreation toutes images et met Majuscule"
 bad_opt={}
 problem=[]
 for f in glob.glob("CardFiles/*_monsters.sav"):
-     if f in ("CardFiles\\all_monsters.sav","CardFiles\\recup_monsters.sav") :
+     if ("all_monsters.sav" in f) or ("recup_monsters.sav" in f) :
          continue
      print "** cards in ",f
-     with open(f, "rb") as fi:
-         mobs = pickle.load( fi)
+     mobs = readMonsters( f)
      for n,m in mobs.items() :
          print "* "+n
          try :
