@@ -441,6 +441,7 @@ class Transformation(Spell) :
             from Creature import AnimatedCreature,Creature
             from cardPowers import CriDeGuerre
             if isinstance(target,Creature) :
+                #print "avant transfo card=",target.card.name
                 target.is_dead=True # evite effet raleDAgonie
                 target.die()
                 for b in target.bonus : # il faut quand meme enlever les bonus
@@ -456,9 +457,17 @@ class Transformation(Spell) :
                 newmonster.starcost=newmonster.getStars()
                 if isinstance(target,AnimatedCreature):
                     target=AnimatedCreature(target,newmonster,target.player,simultaneous=1)  #this makes invocator move
+                    def oldation(x) :
+                        x.card=oldcard  # after creature appears
+                    from functools import partial
+                    effect=partial(oldation,target)
+                    destination=None
+                    phase0 = (destination,20, None,effect)
+                    from Sprites import Animation
+                    Animation(target,[phase0])
                 else :
                     target=Creature(target,newmonster,target.player)
-                target.card=oldcard
+                    target.card=oldcard
                 #target.
             else :
                 if not "simu" in origin.player.name :

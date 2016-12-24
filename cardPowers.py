@@ -1182,7 +1182,7 @@ class Sarcophage(SpellWithLevel) :
         return (1.6+self.level*0.5)*self.target.getCostMultiplier(self)
 #    def Effect(self) :
     def effect(self,origin,target):
-        #if isinstance(target,AnimatedCreature) : print "appel sarco effect"
+        if isinstance(target,AnimatedCreature) : print "appel sarco effect"
         if isinstance(target,Creature) and target.pv>0:
             if hasattr(target,"sarcoturn") :
                 target.sarcoturn = max(target.sarcoturn,self.level)
@@ -1205,6 +1205,7 @@ class Sarcophage(SpellWithLevel) :
                         #print " apres combat de ",other.name," modifiee"
                     for b in reversed(oneself.bonus) :
                         if b.__class__.__name__=="NePeutPasAttaquer" :
+                            print "remove nepeutpasattaquer"
                             oneself.bonus.remove(b)
                             break                   
                         #print selfsarco.name,"retrouve bien sa riposte"
@@ -1213,7 +1214,7 @@ class Sarcophage(SpellWithLevel) :
                 #if isinstance(monsterself,AnimatedCreature) : print "pas de defense en sarcophage"
                 pass
             def modifbefore(bonusself,oponent,oneself) :
-                #if isinstance(oneself,AnimatedCreature) : print "sarco modifbefore : pas de riposte pour",oneself," attaque par",oponent
+                if isinstance(oneself,AnimatedCreature) : print "sarco modifbefore : pas de riposte pour",oneself," attaque par",oponent
                 old_def=FunctionType(oneself.defend.func_code,globals(),closure=oneself.defend.func_closure)
                 oneself.defend=MethodType(doNothing,oneself)
                 oldafter=FunctionType(oneself.afterCombat.func_code,globals(),closure=oneself.afterCombat.func_closure)
@@ -1226,6 +1227,7 @@ class Sarcophage(SpellWithLevel) :
                 return targets
             for b in target.bonus :
                 b.modifyDefenseChoice=MethodType(doNotModifyTarget,b)
+            print target.name," get nePeutpeasattaquer"
             target.bonus.append(NePeutPasAttaquer())
             target.bonus[-1].owner=target
             target.bonus[-1].beforeCombat=MethodType(modifbefore,target.bonus[-1])
@@ -1273,7 +1275,9 @@ class Reinitialize(Spell) :
         return 3.      
     def effect(self,origin,target):
         if target.pv>0 and hasattr(target,"card") :
-            Transformation(target.card).effect(origin,target)
+            import copy
+            #print "reinit transforme en ",target.card.name
+            Transformation(copy.copy(target.card)).effect(origin,target)
             target.ready=False
         #else :
         #    if hasattr(target,"name") and target.name : 

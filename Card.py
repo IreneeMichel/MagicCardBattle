@@ -24,13 +24,10 @@ from outils import localopen
 
 def readMonsters(filename) :
     monsters={}
-    import cardPowers
-    import Spell
-    import Target
     with open(filename,"rb") as filepickle :
         for m in filepickle :
             try :
-                c=eval(m)                
+                c=evalCard(m)                
                 monsters[c.name]=c
             except :
                 print "in file ",filename
@@ -38,12 +35,18 @@ def readMonsters(filename) :
                 raise
     return monsters
 
+def evalCard(str1) : # fonctionne sur carte comme sur liste de cartes
+    import cardPowers
+    import Spell
+    import Target
+    return eval(str1)    
+
 def centerText(screen,position,text,fontSize,color,bg=None) :
     font = pygame.font.SysFont("Calibri Bold",fontSize)
     try:
         textImage = font.render(text,False, color)
     except:
-        print "error with color ",color
+        print "problem with color ",color,"- black (0,0,0)  is taken"
         textImage = font.render(text,False, (0,0,0))
     #textImage = font.render(text,False, (0,0,0),background=bg)
     x,y=textImage.get_size()
@@ -528,7 +531,7 @@ class Card :
         
         self.card_win.pack()                      
 
-    def createImage(self):
+    def createImage(self,black=False):
         width=189*2; height=277*2
         screen = pygame.display.set_mode((width,height))
 
@@ -543,7 +546,7 @@ class Card :
         #fond = PhotoImage(file =bg,master=fenetre)
         #ligne1 = canvas.create_line(75, 0, 75, 120)
         #ligne2 = canvas.create_line(0, 60, 150, 60)      
-        if self.photofile :
+        if self.photofile and not black:
             try :
                img=pygame.image.load(self.photofile)
             except :
@@ -557,7 +560,6 @@ class Card :
                        break
                    except:
                        pass
-            
             img = pygame.image.load(self.photofile)
             w, h = img.get_size()
             factor=max(140.*2./w,90.*2./h)
@@ -598,9 +600,9 @@ class Card :
             if self.monster_type in all_type_colors:
                 Color = all_type_colors[self.monster_type]
             else:
-                Color = "black"
+                Color = "human"
         else:
-            Color = "black"
+            Color = "human"
         centerText(screen,(95*2.,142*2.),self.monster_type.capitalize(),26,Color)
         
         if len(self.bonus)>0 :
@@ -623,7 +625,6 @@ class Card :
         #canvas.pack()
         #print "toto!"
         pygame.display.flip()
-            
         return screen
       
     def init_as_invocation(self,master):

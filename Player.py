@@ -29,7 +29,29 @@ class Player:
         self.mana=0
         self.ending=False
         self.hide_cards = False
-    
+        
+    def sendDeck(self) :
+        print "send Deck"
+        self.game.soc.send(self.name+"\n"+"["+",".join([c.constructor() for c in self.deck])+"]")
+        while 1 :
+            demand=self.game.soc.recv(1024)
+            if demand=="Thanks" :
+                print "deck sent with success"
+                break
+            print "net is asking for ",demand
+            from outils import name2file
+            cheminImage = name2file("Cards",demand,".png")
+            fichierImage = open(cheminImage, "rb")
+            #On convertit la taille en string
+            import os
+            tailleImage = str(os.path.getsize(cheminImage))
+            #On rajoute des 0 devant la taille pour avoir 8 char
+            tailleImage = "0"*(8-len(tailleImage)) + tailleImage               
+            #On a la taille de l'image, on l'envoie au client
+            self.game.soc.send(tailleImage.encode())
+            #On envoit le contenu du fichier
+            self.game.soc.send(fichierImage.read()) 
+                
     def start(self):        
         if self.deck:
             self.drawCard(3)
@@ -155,6 +177,7 @@ class Player:
             
     def update(self,events):
         #print "player update"
+        soc=self.game.soc
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN:             
                 if hasattr(self,"verbose") and self.verbose>4 : print "           event Button in Player.update "
@@ -169,13 +192,10 @@ class Player:
                     for t in contact :
                         if t in valide_target :
                             self.Attacker_selected.combatAnim(t)
+                            if soc : soc.send("Attack "+t.name[:6]+" "+str(t.id)+"\n")                          
                             break
-                        """
-                        if hasattr(t,"name") :
-                            print t.name,"is not a possible target"
-                        else :
-                            print "bad target with no name"
-                        """
+                    else :                        
+                        if soc : soc.send("None\n")
                     self.deselection()                       
                 elif self.spell_pending != None:
                     #print "clic et spell pending"
@@ -196,6 +216,7 @@ class Player:
                         if t in valide_target :
                             self.deselection()                     
                             self.spellEffect(spell,origin,[t])
+                            if soc : soc.send("aim at "+t.name[:6]+" "+str(t.id)+"\n")
                             break
                         """
                         if hasattr(t,"name") :
@@ -208,19 +229,26 @@ class Player:
                     zoomedcard=self.game.zoomed.card
                     if isinstance(zoomedcard,Creature) and zoomedcard.player==self:
                         if zoomedcard.ready :
-                            self.selection(zoomedcard)        
+                            if (any([isinstance(b,NePeutPasAttaquer) for b in zoomedcard.bonus]) 
+                                and not any([isinstance(b,ALaPlaceDeLAttaque) for b in zoomedcard.bonus]) ) :
+                                    pass
+                            else :
+                                self.selection(zoomedcard)
+                                if soc : soc.send("Attack with "+zoomedcard.name+" "+str(zoomedcard.id)+"\n")
                     elif isinstance(zoomedcard,CardInHand) and zoomedcard.player==self:
                         if self.actualCost(zoomedcard) <= self.mana:
                             if zoomedcard.content.pv >0 and self.nb_invocation_done_this_turn>=5 :
                                 print "only 5 monster per Turn can be created"
                             else :
                                 self.playCard(zoomedcard)
+                                if soc : soc.send("Creation of "+zoomedcard.getInlineDescription()+"\n") 
                     elif zoomedcard :  # should be only None left
                         print "unknown type ?"    
                 # Clicked on end button
                 if self.game.endturn_button.rect.collidepoint(pos):               
                     self.deselection()
                     if not self.ending :
+                        if soc : soc.send("End your turn\n")
                         self.endTurn()             
         #print "fin player update"
     def actualCost(self,card) :
@@ -347,7 +375,7 @@ class Computer0(Player) :
                     if (any([isinstance(b,NePeutPasAttaquer) for b in mons.bonus]) 
                         and not any([isinstance(b,ALaPlaceDeLAttaque) for b in mons.bonus]) ) :
                             continue
-                    poss.append((partial(self.select_attack_target,mons),"Attack with "+mons.name))
+                    poss.append((partial(self.select_attack_target,mons),"Attack with "+mons.name+" "+str(mons.id)))
         for c in self.hand :
             if not isinstance(c,SimulationComputer.NotPlayableCard) :
                 if hasattr(c,"content") :
@@ -369,13 +397,16 @@ class Computer0(Player) :
         targets=self.attack_targets(monster)
         #print "for computer , target is ",targets
         if targets :
-            poss=[(m,"Attack "+"own "*(m.player is self)+m.getInlineDescription()+str(len(m.marks)),monster) for m in targets if isinstance(m,Creature)]
+            poss=[(m,"Attack "+m.name[:6]+" "+str(m.id),monster) for m in targets if isinstance(m,Creature)]
             if self.adv in targets :
-                poss.append((self.adv,"Attack ennemy heroes",monster))
+                poss.append((self.adv,"Attack "+self.adv.name[:6]+" "+str(self.adv.id),monster))
                 # ttttt
             choice=self.getChoice(poss)
-            target=choice[0]
-            monster.combatAnim(target)
+            if choice :
+                target=choice[0]
+                monster.combatAnim(target)
+            else :
+                print "dans le else de select attack target"
         else :
             monster.ready=False
         #if isinstance(self,SimulationComputer) : # action is  instant only for simulation computer
@@ -394,12 +425,16 @@ class Computer0(Player) :
             if not targets :
                 print " no available target for ",spell.getInlineDescription()
                 return 
-            poss=[(m,"cast "+spell.getInlineDescription()+" on "+"own "*(m.player is self)+m.getInlineDescription(),origin,spell) for m in targets if isinstance(m,Creature)]
+            poss=[(m,"aim at "+m.name[:6]+" "+str(m.id),origin,spell) for m in targets if isinstance(m,Creature)]
             if self.adv in targets :
-                poss.append((self.adv,"aim at ennemy hero",origin,spell))
+                poss.append((self.adv,"aim at "+self.adv.name[:6]+" "+str(self.adv.id),origin,spell))
             if self in targets :
-                poss.append((self.adv,"aim at your hero",origin,spell))
-            target=[self.getChoice(poss)[0]]
+                poss.append((self,"aim at "+self.name[:6]+" "+str(self.id),origin,spell))
+            choice=self.getChoice(poss)
+            if choice :
+               target=[choice[0]]
+            else :
+                target=None
             if hasattr(self,"verbose") and self.verbose>2 : print "           choosen target for spell is ",target[0].name,"  ",target
         if target :
             self.spellEffect(spell,origin,target)
@@ -506,6 +541,7 @@ class Computer(Computer0) :
                         comp1=SimulationComputer(self.name+"-simu1",[],simugame,self.nv-1,[i,len(poss),poss[i][1]],verbose=self.verbose-1)
                         comp2=SimulationComputer(self.adv.name+"-simu2",[],simugame,self.nv-1,verbose=self.verbose-1)
                         comp1.pv,comp2.pv=self.pv,self.adv.pv
+                        comp1.id,comp2.id=self.id,self.adv.id
                         comp1.army=[CreatureCopy(m,comp1) for m in self.army]
                         #print "army comp1",comp1.army
                         comp2.army=[CreatureCopy(m,comp2) for m in self.adv.army]
@@ -528,7 +564,8 @@ class Computer(Computer0) :
                         else :
                             simugame.player=simugame.player2=comp1
                             simugame.player1=comp2
-                        simugame.firstplayer=self.game.firstplayer
+                        #simugame.firstplayer=self.game.firstplayer
+                        simugame.id=self.game.id
                         if self.verbose>1 : print " "*4*(2-self.nv)+"avant actions, army de playing ",comp1,"=",[c.name for c in comp1.army]
                         # maintenant on joue la simugame :
                         if playing_monster : # simulation d attaque
@@ -642,4 +679,112 @@ class SimulationComputer(Computer) :
         self.pv-=damage       
     def orderArmy(self,add=0) :
         pass
+
+class HostedPlayer(Computer0) :
+    def __init__(self,game) :
+        self.game = game
+        self.hand=pygame.sprite.OrderedUpdates()
+        self.army= pygame.sprite.OrderedUpdates() # includes weapons and unbunded permanent spells
+        self.max_pv = self.pv=30       
+        self.player=self
+        self.att=0            
+        self.bonus=[]
+        self.Attacker_selected = None
+        self.spell_pending = None
+        self.mana=0
+        self.ending=False
+        self.hide_cards = True
+        print "Hosted player is ok"
+        self.remains=""
+    
+    def receiveDeck(self) :
+        print "try to receive deck"
+        import time
+        time.sleep(0.5) # pour que le send en face soit fini
+        mess=self.game.soc.recv(1024*16)
+        try :
+            name,cards=mess.split("\n")
+            self.name=name
+        except :
+            print "got message ",mess
+            print "should have name\ndeck"
+            raise
+        from Card import evalCard,all_monsters
+        try :
+            self.deck=evalCard(cards) # le jeu est deja melange
+        except :
+          print "error with",cards
+          for c in cards.strip().strip("[]").split("Card(").strip(",") :
+            try :
+                evalCard("Card("+c) # all_monsters contient des instances
+            except :
+                print "problem with ",c
+        print "opponent name ",name
+        #print "deck",deck
+        asking=set()
+        for c in self.deck :
+            c.costint=int(floor(c.getCost()))
+            c.starcost=c.getStars()
+            print "c.constructor()",c.constructor()
+            for name in c.constructor().split('Card("')[1:] :
+                #print "nam brut",name
+                name=name.split('"')[0]
+                #print "name modif",name
+                if name not in all_monsters or c.getInlineDescription()!=all_monsters[c.name].getInlineDescription() :
+                    asking.add(name)
+        for name in asking :
+            self.game.soc.send(name)
+            print "asking for image ",name
+            tailleImage = self.game.soc.recv(8)
+            #On convertit la taille de l'image en entier (en octets)
+            tailleImage = int(tailleImage.decode())
+            #Contenu loaded
+            contenuTelecharge = 0
+            #Le fichier qui va contenir l'image
+            from outils import name2file
+            filename=name2file("",name,".png")
+            fichierImage = open(filename,"wb")               
+            #On continue la lecture up to th end
+            while contenuTelecharge < tailleImage:
+                #On lit les 1024 octets suivant
+                contenuRecu = self.game.soc.recv(1024)
+                #On enregistre dans le fichier
+                fichierImage.write(contenuRecu)
+                contenuTelecharge += len(contenuRecu)
+            fichierImage.close()
+            c.image = pygame.image.load(filename)
+            print "ok for one"
+        for c in self.deck :  # si l image est nouvelle on l affecte a la carte 
+            if c.name in asking :
+                filename=name2file("",c.name,".png")
+                c.image=pygame.image.load(filename)
+        print "net player cards are received"
+        self.game.soc.send('Thanks')  # echo
+        
+    def getChoice(self,poss):
+        #print "get choice from distant player"
+        print "try to receive"
+        mess=""
+        while (not mess) and (not self.remains) :
+            mess=self.game.soc.recv(1024*2).strip()
+        if self.remains :
+            mess=self.remains+'\n'+mess
+        if "\n" in mess :
+            print "received in total ",mess
+            mess,self.remains=mess.split("\n",1)
+        else :
+            self.remains=""
+        mess=mess.strip()
+        print "got ",mess
+        for p in poss :
+            if mess.strip()==p[1] :
+                break
+        else :
+            if mess.strip()!="None" :
+                print "error actions does not correspond"
+                for i,p in enumerate(poss) :
+                    print i,":",p[1]
+            p=None
+        return p
+
 

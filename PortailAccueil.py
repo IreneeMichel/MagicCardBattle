@@ -137,8 +137,8 @@ class DeckButton(Button):
         #print " deck name is",deck_name
         size = (1500,2000)
         font_size = 36
-
-        with open(name2file("Decks",deck_name,".dek"),"r") as fil:
+        if deck_name != "NET BATTLE" :
+          with open(name2file("Decks",deck_name,".dek"),"r") as fil:
             deck = eval(fil.read())
             del deck["AvatarImage"]
             [all_cards[k[0]].getCost() for k in deck.items()] # a cause de RaleDAgonie qui a besoin d un appel a getcost avant
@@ -159,12 +159,16 @@ class DeckButton(Button):
             else:
                 self.accessible = True
                 color = GREEN
+        else :
+            color=BLUE
+            self.accessible=True
+            stars=0
 
         while size[0]>self.size[0]-30:
             self.image = copy(image)
             font = pygame.font.SysFont("Heraldic",font_size,italic=True,bold=True)
-            text = font.render(deck_name+"- "+str(stars)+"*",False,color)
-            size = font.size(deck_name+"- "+str(stars)+"*")
+            text = font.render(deck_name+"- "+(str(stars)+"*")*(stars!=0),False,color)
+            size = font.size(deck_name+"- "+(str(stars)+"*")*(stars!=0))
             self.image.blit(text,(self.size[0]/2-size[0]/2,self.size[1]/2-size[1]/2))
             font_size-=1
 
@@ -339,6 +343,7 @@ class Game():
             list_ =  all_decks
         l = len(list_)
         print "list_",list_
+        if n==2 : l+=1
         for x,i in enumerate(list_):
             angle = (x+1)*360/l
             x_center = int(math.sin(math.radians(angle))*300) + size[0]/2
@@ -355,14 +360,21 @@ class Game():
                 button = DeckButton(x_center,y_center,image,self.deckSelection,self,[2,i],i)
                 self.all_sprites_list.add(button)
                 #print "level 1 selection"
-        image = pygame.image.load(["gameAnimationImages/PlayerButton1.png","gameAnimationImages/PlayerButton1.png","gameAnimationImages/PlayerButton2.png"][n])
+        image2 = pygame.image.load(["gameAnimationImages/PlayerButton1.png","gameAnimationImages/PlayerButton1.png","gameAnimationImages/PlayerButton2.png"][n])
         if not(n == 2):
-            self.all_sprites_list.add(PlayerImage(size[0]/2,size[1]/2,image))
+            self.all_sprites_list.add(PlayerImage(size[0]/2,size[1]/2,image2))
         else:
-            self.adv_type_button = Button(size[0]/2,size[1]/2,image,self.changePlayerType,self,[])
+            angle = 360.
+            x_center = int(math.sin(math.radians(angle))*300) + size[0]/2
+            y_center = int(math.cos(math.radians(angle))*300) + size[1]/2
+            #print x_center,y_center,angle
+            button = DeckButton(x_center,y_center,image,self.startNetGame,self,[deck],"NET BATTLE")
+            self.all_sprites_list.add(button)
+            
+            self.adv_type_button = Button(size[0]/2,size[1]/2,image2,self.changePlayerType,self,[])
             self.all_sprites_list.add(self.adv_type_button)
         self.previous = self.initDeckSelection
-
+                
     def initDeckSelection(self):
         self.adversory_type = "Computer"
         self.deckSelection(1,None)
@@ -450,7 +462,7 @@ class Game():
         else :
             gam.player1.avatar_img=pygame.image.load("Avatars/Chevalier_noir#.png")
         gam.player2.avatar_img=pygame.image.load("Avatars/"+level.avatar)
-        gam.initialise()
+        gam.initialize()
         gam.play()
         winner = gam.get_winner() # player name or None if quit manually
         if winner == "Player" and self.level_prog==self.all_levels.index(level)+1:
@@ -477,13 +489,25 @@ class Game():
             gam.player2=Player.Player("Player 2",gam.chooseDeck(deck2,2),gam)
         gam.player1.avatar_img=None
         gam.player2.avatar_img=None
-        gam.initialise()
+        gam.initialize()
         gam.play()
         self.slaughter()
         size = (900, 800)
         global screen
         screen = pygame.display.set_mode(size)
         self.initialize()
+
+    def startNetGame(self,deck_name) :
+        print "play net game with deck",deck_name
+        from CardGame import NetGame
+        from Player import Player,HostedPlayer
+        game = NetGame()
+    #game.defaultPlayers(player1_set,player2_set)   
+        game.player1=Player("Player",game.chooseDeck(deck_name),game)
+        game.player2=HostedPlayer(game)
+        game.initialize()
+        game.play()
+
 
 
 pygame.init()

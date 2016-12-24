@@ -1,7 +1,7 @@
 import os
 import glob
 import pygame
-import traceback
+#import traceback
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 pygame.init()
@@ -9,7 +9,7 @@ pygame.init()
 from copy import copy
 from Card import Card,readMonsters
 from cardPowers import *
-from Player import Player,Computer,Computer0
+from Player import Player,Computer,Computer0,HostedPlayer
 #from Creature import Creature,AnimatedCreature
 from Sprites import Mouse,EndButton,HeroButton, ZoomOn
 from random import choice
@@ -82,6 +82,8 @@ class Game():
         self.player1_avatar = self.player2_avatar = None
         self.mouse_icon = pygame.sprite.GroupSingle()
         self.mouse_icon.add(self.mouse)
+        self.soc=None
+        self.id=-1
     
     def defaultPlayers(self,set1,set2):
         #self.player1=Player(set1[0],self.chooseDeck(set1[1],1),self)
@@ -92,9 +94,9 @@ class Game():
         if set2[2]!=None:
             self.player2.avatar_img=pygame.image.load(set2[2])
         
-        self.initialise()
+        self.initialize()
     
-    def initialise(self):
+    def initialize(self):
         if self.player1_avatar and not(hasattr(self.player1,"avatar_img") and self.player1.avatar_img):
             self.player1.avatar_img = self.player1_avatar
         else:
@@ -106,7 +108,7 @@ class Game():
         else:
             if not(hasattr(self.player2,"avatar_img") and self.player2.avatar_img):
                 print "ERROR NO AVATAR FOR PLAYER 2"
-                self.player1.avatar_img=pygame.image.load("Avatars/Chevalier_noir#.png")
+                self.player2.avatar_img=pygame.image.load("Avatars/Chevalier_noir#.png")
         self.player1.position_y=(840*self.height)/900
         self.player2.position_y=(70*self.height)/900
         self.player1.army.position_y=self.height-300
@@ -122,15 +124,21 @@ class Game():
         self.all_sprites.add(self.player1.icon)
         self.player2.icon = HeroButton(self.player2)
         self.all_sprites.add(self.player2.icon)
-        
-        self.firstplayer=choice([self.player1,self.player2])
-        print "FIRST PLAYER IS",self.firstplayer.name
-        self.player=self.firstplayer
-        self.player.adv.drawCard(1)
+        if not hasattr(self,"firstplayer") :
+            self.firstplayer=choice([1,2])
+        if self.firstplayer==1 :
+            self.firstplayer=self.player1
+        elif self.firstplayer==2 :
+            self.firstplayer=self.player2
+        self.player=self.firstplayer            
+        self.player.adv.drawCard(1)    
+        self.player.id=0
+        self.player.adv.id=1
+        self.id=1 
         
         self.player1.start()
         self.player2.start()
-        
+       
         
     def defaultDeck(self) :
         trollrouge=Card("Troll rouge",4,4)
@@ -351,6 +359,9 @@ class Game():
     
     def get_winner(self):
         return self.winner
+    def getId(self) :
+        self.id+=1
+        return self.id
 
 class SimulationGame(Game):
     def __init__(self,original_game) :
@@ -367,7 +378,90 @@ class SimulationGame(Game):
         while not self.end :
             self.player.update(events) # computer plays
 
-        
+class NetGame(Game) :
+    def __init__(self) :
+        Game.__init__(self)
+        import socket  
+        self.local = self.host=socket.gethostbyname(socket.gethostname()) # Get local machine ip
+        from Tkinter import Tk,PanedWindow,StringVar,Entry,Button,VERTICAL,HORIZONTAL,Label
+        fenetre=Tk()
+        fenetre.title('Socket parameters') 
+        self.netgame_win = PanedWindow(fenetre, orient=VERTICAL)
+        host_zone=PanedWindow(self.netgame_win, orient=HORIZONTAL)
+        host=StringVar()
+        host.set(self.local)
+        def modifHost(*args) :
+            self.host=host.get()
+            if self.local==self.host :
+                start_button.config(text="Create")
+            else :
+                start_button.config(text="Join")
+        host.trace("w", modifHost)
+        host_wid=Entry(host_zone, width=30,textvariable=host)
+        host_wid.pack()
+        host_label=Label(fenetre, text="Host (you are "+self.local+") :")
+        host_zone.add(host_label)
+        host_zone.add(host_wid)
+        self.netgame_win.add(host_zone)
+        port_zone=PanedWindow(self.netgame_win, orient=HORIZONTAL)
+        port=StringVar()
+        self.port=52333
+        port.set(str(self.port))
+        # adress_wid=Label(None, textvariable=self.cost, background='red',width=5, anchor=W)
+        def modifPort(*args) :
+            self.port=port.get()
+        port.trace("w", modifPort)
+        port_wid=Entry(port_zone, width=30,textvariable=port)
+        port_wid.pack()
+        port_label=Label(fenetre, text="Port :")
+        port_zone.add(port_label)
+        port_zone.add(port_wid)
+        self.netgame_win.add(port_zone)
+        #Create the open button
+        def start() :
+            fenetre.destroy()
+        start_button=Button(self.netgame_win,text="Create",command=start)
+        self.netgame_win.add(start_button)
+        self.netgame_win.pack()
+        fenetre.focus_set()
+        start_button.focus()        
+        fenetre.mainloop()
+             # Import socket module
+        self.soc = socket.socket()                 # Reserve a port for your service.
+        if self.local==self.host :
+            self.soc.bind((self.host, self.port))        # Bind to the port
+            print "socket listening"
+            self.soc.listen(5)                 # Now wait for client connection.
+
+            self.soc, addr = self.soc.accept()     # Establish connection with client.
+            print 'Got connection from', addr
+            #self.soc.send('Thank you for connecting')
+            #c.close()                # Close the connection
+            self.firstplayer=choice([1,2])
+            print "FIRST PLAYER IS",1
+            self.soc.send(str(3-self.firstplayer))
+        else :
+            self.soc.connect((self.host, self.port))
+            print "connect ok"
+            p=self.soc.recv(1024)
+            try :
+                self.firstplayer=int(p)
+            except :
+                print "error concerning first player, got ",p
+            #self.soc.close()                     # Close the socket when done
+    def initialize(self) :
+        if self.firstplayer==1 : # player1 doit etre le local
+            print "first player is local"
+            self.player1.sendDeck()
+            self.player2.receiveDeck()
+        else :
+            print "first player is hosted"
+            self.player2.receiveDeck()
+            self.player1.sendDeck()         
+        Game.initialize(self)
+        if self.player==self.player2 :
+            self.endturn_button.update(self.player)
+    
 if __name__=="__main__" :
     sets = {}
     sets["Aqua"]=("Poseidon","Fureur des Mers","Avatars/poseidon#.png")
@@ -385,10 +479,16 @@ if __name__=="__main__" :
     sets["Nocturne"]=("Seigneur Sombre","Nocturne","Avatars/SeigneurNoir#.png")
     sets["Ogres"]=("Grand Chef des Ogres","Ogres du Grand Sud","Avatars/ChefOgre#.png")
     player2_set = sets["Undead"]
-    player1_set = sets["Reve"]
-    game = Game()
-    game.defaultPlayers(player1_set,player2_set)
+    player1_set = sets["Nain"]
+    game = NetGame()
+    #game.defaultPlayers(player1_set,player2_set)
+    
+    game.player1=Player(player1_set[0],game.chooseDeck(player1_set[1]),game)
+    #game.player2=hostedPlayed(set2[0],self.chooseDeck(set2[1]),game,2,verbose=1,hide=False)
+    game.player2=HostedPlayer(game)
+    game.initialize()
     game.play()
+    game.soc.close()
     pygame.quit()
 
         

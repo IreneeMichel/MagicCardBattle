@@ -201,13 +201,16 @@ class Animation :
                 self.increase_size = ((endsize[0]-self.subject.size[0])/delay,(endsize[1]-self.subject.size[1])/delay)
             else :
                 self.increase_size = (0,0)
-            self.pos = [(self.subject.center[0]+i*(destination[0]-self.subject.center[0])/delay,self.subject.center[1]+i*(destination[1]-self.subject.center[1])/delay) for i in range(delay+1,0,-1)]
+            if destination :
+                self.pos = [(self.subject.center[0]+i*(destination[0]-self.subject.center[0])/delay,self.subject.center[1]+i*(destination[1]-self.subject.center[1])/delay) for i in range(delay+1,0,-1)]
+            else :
+                self.pos = None
             self.phase_end_time=delay
             #print self.increase
             #print self.increase_size
         else:
             #print "fin animation",type(self.subject)
-            a=len(self.subject.game.all_animations)
+            #a=len(self.subject.game.all_animations)
             self.subject.game.all_animations.remove(self)
             if self.subject in self.subject.game.temporary_sprites :
                 self.subject.game.temporary_sprites.remove(self.subject)
@@ -271,8 +274,13 @@ class CardInHand(Sprite) :
     #    pass
     def show(self) :
         #print "card is supposed to show"
-        name=self.content.name.replace(" ","_")
-        image = pygame.image.load("Cards/"+name+".png") 
+        # CardInHand has image but it is actually the back
+        card=self.content
+        if not hasattr(card,"image") or not card.image :        
+            name=self.content.name.replace(" ","_")
+            image = pygame.image.load("Cards/"+name+".png")
+        else :
+            image=card.image
         self.image = pygame.transform.scale(image,(163, 240))
 
     def getCost(self):

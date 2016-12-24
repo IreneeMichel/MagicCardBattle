@@ -44,6 +44,7 @@ class Creature() :
             player.launch(self,card.bonus[0])
         else :
             self.marks={}
+            self.id=self.game.getId()
             if isinstance(origin,Creature) :
                 self.is_invocation=True
             else :
@@ -201,7 +202,21 @@ class AnimatedCreature(Sprite,Creature) :
         # creature is init only after effect
         if not hasattr(card,"image") :
             name=card.name.replace(" ","_")
-            card.image = pygame.image.load("Cards/"+name+".png")
+            try :
+                card.image = pygame.image.load("Cards/"+name+".png")
+            except :
+                import glob
+                lina=glob.glob("*"+name+"*.png")+glob.glob("*/*"+name+"*.png")
+                if lina :
+                    card.image = pygame.image.load(lina[0])
+                else :
+                    screen_info = pygame.display.Info() #Required to set a good resolution for the game screen
+                    height,width = screen_info.current_h, screen_info.current_w
+                    print "image manquante ,name=",name
+                    card.image = card.createImage(True)
+                    pygame.image.save(card.image,name+".png")
+                    card.image = pygame.image.load(name+".png")
+                    pygame.display.set_mode((width,height))
         Sprite.__init__(self,origin,pygame.transform.scale(card.image,(136, 200)))
         self.game=player.game
         self.player=player
@@ -314,10 +329,10 @@ class AnimatedCreature(Sprite,Creature) :
                 if not "." in name :
                     fname=name+".png"
                 try :
-                    image=pygame.image.load(fname)
+                    image=pygame.image.load("gameAnimationImages/"+fname)
                 except :
                     try :
-                        image=pygame.image.load("gameAnimationImages/"+fname)
+                        image=pygame.image.load(fname)                
                     except :
                         import glob
                         u=glob.glob("*/"+fname)
