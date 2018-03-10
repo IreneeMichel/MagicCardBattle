@@ -1,6 +1,9 @@
 import os
 import glob
 import pygame
+import time
+import random
+import deck_creation
 #import traceback
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
@@ -8,11 +11,14 @@ pygame.init()
 
 from copy import copy
 from Card import Card,readMonsters
-from cardPowers import *
+import cardPowers
 from Player import Player,Computer,Computer0,HostedPlayer
+import Level
 #from Creature import Creature,AnimatedCreature
 from Sprites import Mouse,EndButton,HeroButton, ZoomOn
 from random import choice
+
+from math import floor
 
 def g(self,i) :
      return self.sprites()[i]
@@ -27,7 +33,6 @@ def ad(self,li2) :
         li1.append(li2)
     return li1
 pygame.sprite.OrderedUpdates.__add__=ad
-
 from outils import file2name
 from outils import name2file
 from outils import localpath
@@ -70,13 +75,15 @@ class Game():
         self.all_sprites.add(self.endturn_button)
         
         self.zoomed=None
-        self.animation_runing = False
-        self.all_animations = []
+        #self.animation_runing = False
+        self.effect_list=[]
+        self.animations = []
         
         self.screen.fill(BROWN)
         pygame.display.flip()
         #player = player1
         self.turn = 1
+        self.creatures_limit = 9
         self.winner = None
         self.end = False   # a changer peut etre par appel de game.end()
         self.player1_avatar = self.player2_avatar = None
@@ -84,6 +91,8 @@ class Game():
         self.mouse_icon.add(self.mouse)
         self.soc=None
         self.id=-1
+        self.objects={}
+        self.dead_monsters=[]
     
     def defaultPlayers(self,set1,set2):
         #self.player1=Player(set1[0],self.chooseDeck(set1[1],1),self)
@@ -96,7 +105,7 @@ class Game():
         
         self.initialize()
     
-    def initialize(self):
+    def initialize(self,common_start = True):
         if self.player1_avatar and not(hasattr(self.player1,"avatar_img") and self.player1.avatar_img):
             self.player1.avatar_img = self.player1_avatar
         else:
@@ -130,14 +139,18 @@ class Game():
             self.firstplayer=self.player1
         elif self.firstplayer==2 :
             self.firstplayer=self.player2
-        self.player=self.firstplayer            
-        self.player.adv.drawCard(1)    
-        self.player.id=0
-        self.player.adv.id=1
-        self.id=1 
+        self.player=self.firstplayer   
+        self.setId(self.player)
+        self.setId(self.player.adv)
         
-        self.player1.start()
-        self.player2.start()
+        if common_start:
+            self.player1.start()
+            self.player2.start()            
+            self.player.adv.drawCard(1) 
+        else:
+            
+            self.player1.initialise()
+            self.player2.initialise()  
        
         
     def defaultDeck(self) :
@@ -182,14 +195,15 @@ class Game():
         deck=[Card("Troll gris",4,4)]*2+[murlock,trollrouge,templier,mouton,mouton,gobhorde,archer_elfe,archer_elfe,archer_elfe,pretresse,pingouin,vase,trou]*2
         deck=[Card("Troll gris",4,4)]*2+[mouton,seigneur,seigneur,barbare,catapulte,barbare,catapulte,pingouin,vase,trou,gobhorde]*3#+[archer_elfe,mouton]*1
         return deck
+
     def chooseDeck(self,name=None,n_p=0) :
         #from deck_creation import utilisation_list
 
         all_decks = [file2name(fname,'.dek') for fname in glob.glob("Decks/*.dek")]
         #print "possible decks are :",all_decks
         deck = []
-        
         if not(name in all_decks):
+            print all_decks
             while not deck:
                 print name," is not accessible"
                 name = raw_input("choose a deck in list :")
@@ -225,7 +239,7 @@ class Game():
         else :
             deck=None
 
-        from cardPowers import Camouflage, Provocation
+        from cardPowers import Camouflage, Provocation,DonneArmureAuHero
         for d in reversed(deck):
             if (any([b.__class__==Camouflage for b in d.bonus]) or any([b.__class__==Camouflage for b in d.bonus])) and (any([(b.__class__==Provocation) for b in d.bonus]) or any([(b.__class__==DonneArmureAuHero) for b in d.bonus])):
                 for i in range(60):
@@ -237,7 +251,90 @@ class Game():
                 break
 
         return deck
+        
+    def activateOption(self,keyword):
+        from Creature import AnimatedCreature
+        if keyword[:12] ==  "SetHeroLives":
+            hp = int(keyword[12:])
+            self.player1.max_pv = self.player1.pv= hp            
+            self.player2.max_pv = self.player2.pv= hp
+            self.player1.icon.update()
+            self.player2.icon.update()
+        
+        if keyword[:14] == "SetInitialMana":
+            self.turn = int(keyword[14:])
+            self.player.mana = int(keyword[14:])
+        
+        if keyword[:21] == "LimiteNombreCreatures":
+            self.creatures_limit = int(keyword[21:])
+
+        if keyword == "FrozenBoats":
+            undead_monsters = readMonsters("CardFiles/undead_monsters.sav")
+            card = undead_monsters["Navire Gele"]
+            
+            print "summoned frozen boats"
+            
+            for player in self.player1,self.player2:          
+                for i in range(2):
+                    AnimatedCreature([self.width/2,self.height/2],card,player,triggerPlayingEffect=True)
+                player.orderArmy()
+        
+        if keyword == "Algues":
+            nature_monsters = readMonsters("CardFiles/nature_monsters.sav")
+            card = nature_monsters["Algue Envahissante"]
+            
+            AnimatedCreature([self.width/2,self.height/2],card,self.player2,triggerPlayingEffect=False)
+        
+        if keyword == "Lakshmi":
+            nature_monsters = readMonsters("CardFiles/indian_monsters.sav")
+            card = nature_monsters["Lakshmi"]
+            
+            AnimatedCreature([self.width/2,self.height/2],card,self.player1,triggerPlayingEffect=False)
+        
+        if keyword == "Baton de La Lune Rugissante":
+            felys_monsters = readMonsters("CardFiles/felys_monsters.sav")
+            card = felys_monsters["Baton de La Lune Rugissante"]
+            
+            AnimatedCreature([self.width/2,self.height/2],card,self.player1,triggerPlayingEffect=False)
+        
+        if keyword == "AgonieResonante":
+            for player in self.player1, self.player2:
+                
+                for card in player.deck+[c.content for c in player.hand]:
+                    
+                    for b in card.bonus:
+                        if b.__class__.__name__ == "RaleDAgonie":
+                            card.bonus.remove(b)
+                            b = cardPowers.AgonieResonante(b.spell)
+                            card.bonus.append(b)
+        
+        if keyword == "FroidIntenable":
+            from cardPowers import Souffrant,InsensibleALaMagie,Isole
+            for player in self.player1, self.player2:                
+                for card in player.deck+[c.content for c in player.hand]:                    
+                    if card.pv>0 and not(any([b.__class__ in (Souffrant,InsensibleALaMagie,Isole) for b in card.bonus])):
+                        card.bonus.append(cardPowers.Souffrant())
+                            #print card.name, " rale d'agonie mofifie par l'option"
+        if keyword == "Recifs":
+            aqua_monsters = readMonsters("CardFiles/aqua_monsters.sav")
+            card = aqua_monsters["Recifs"]
+            
+            for player in self.player1,self.player2:
+                AnimatedCreature([self.width/2,self.height/2],card,player,triggerPlayingEffect=False)
+            
+            card = aqua_monsters["Mer De Corail"]
+            
+            AnimatedCreature([self.width/2,self.height/2],card,self.player1,triggerPlayingEffect=False)
+            player.orderArmy()
+
     def changePlayer(self):
+        a=[m.name for m in self.player1.army if m.pv<1]+[m.name for m in self.player2.army if m.pv<1]
+        if len(a)>0 :
+            print "zombi :",a
+            raise 0
+        if self.player.adv.pv<=0 :
+            self.player.adv.icon.update()
+            return
         #print "change player"
         if self.player == self.player1:
             self.player = self.player2
@@ -247,20 +344,31 @@ class Game():
             print "error of player"
         if hasattr(self.player,"verbose") and self.player.verbose>0 : print "****  turn of player ",self.player.name
         self.endturn_button.update(self.player)
+        self.all_sprites.draw(self.screen) # pour mettre a jour endturn_button a l ecran
         if self.player==self.firstplayer :
             self.turn += 1
+        if isinstance(self.player,Computer0) :
+            self.saveGame()
         self.player.beginOfTurn()
-    
+
+    def waitEndOfEffects(self):
+        while self.effect_list :
+            self.treatEffectList()
+        mlist=[ m for m in self.player1.army if m.pv<1 or m.max_pv==0 ]+[m for m in self.player2.army if m.pv<1 or m.max_pv==0 ]
+        for m in reversed(mlist) :
+            m.die()
+        
     def play(self) :
         #print "game play"
         #self.player.takeTurn(self.turn)
-        while not self.end :
+        while (not self.end) or (self.animation_runing) :
             self.update()
         #print "game ended"
 
     def update(self) :
-        # print "game update"
+        #print "game update"
         #space = False
+        import cardPowers # utile pour les effets dans effect_list
         self.screen.fill(BROWN)
         self.screen.blit(self.bg,(0,0))
         drawing=pygame.sprite.OrderedUpdates()
@@ -276,8 +384,10 @@ class Game():
                     drawing.add(effect)
         drawing.draw(self.screen)
         ##print "draw  "," ".join([i.content.nom for i in self.player1.hand.sprites()])
-        self.player2.hand.draw(self.screen)
-        self.player1.hand.draw(self.screen)
+        for player in self.player1, self.player2:
+            for c in player.hand:
+                c.updateImage()
+            player.hand.draw(self.screen)
         self.temporary_sprites.draw(self.screen)
         #self.player1.hand.draw(self.screen)
         events = pygame.event.get()
@@ -309,7 +419,7 @@ class Game():
             self.player.adv.update(events)
             #if hasattr(self.player,"verify_value") :
             #    del self.player.verify_value # on ne peut plus verifier l effet d une action si le joueur influe librement dessus
-        elif len(self.all_animations)<1 :
+        elif len(self.animations)<1 and len(self.effect_list)<1 :
             self.animation_runing=False
             if not isinstance(self.player,Computer0):
                 if self.player.Attacker_selected:
@@ -319,11 +429,23 @@ class Game():
                 if self.player.spell_pending :
                     a=pygame.draw.rect(self.screen,(60,60,100), (200,100,300,30))
                     font = pygame.font.SysFont('Arial', 15)
-                    self.screen.blit(font.render('Target for '+self.player.spell_pending[1].getInlineDescription(), True, (255,0,0)), (200, 100))             
-            self.player.update(events) # computer play here        
-            
-        for a in self.all_animations:
+                    self.screen.blit(font.render('Target for '+self.player.spell_pending[1].getInlineDescription(), True, (255,0,0)), (200, 100))
+            if not self.player.spell_pending and len([m.id for m in self.player.army if m.pv>0 ])>self.creatures_limit :
+                print " monstre en trop ",[m.name for m in self.player.army if m.pv>0 ]," >",self.creatures_limit
+                self.player.sacrify()
+#                    print "effets",self.game.effect_list
+#                    self.game.waitEndOfEffects()
+#                    print "fin des effets",self.game.effect_list
+
+            self.player.update(events) # computer play here
+        #print "effect_list",self.effect_list
+        self.treatEffectList()
+        for a in reversed(self.animations):
             a.animate()
+        if self.animations :
+            self.animation_runing=True
+        else :
+            self.animation_runing=False
         self.mouse.update()                                      
         self.display_zoom()          
         font = pygame.font.SysFont("Calibri",32)
@@ -339,7 +461,79 @@ class Game():
         #self.to_draw.draw(self.screen)
         pygame.display.flip()
         self.clock.tick(60)
-
+        
+    def treatEffectList(self) :
+        import Target,Spell
+        for a in self.effect_list :
+            a[0]=a[0]-1
+            #print "effect_list compte a rebour",a[0]
+            if a[0]==0 :
+                #print self.player1.name," effect_list declanche ",a
+                a[0]==-1  # l effet est pris en compte, la simulation va le considere deja effectue
+                method_name=a[2]
+                args=a[3]
+                if args!=None :
+                    for i in range(len(args)) :
+                        if type(args[i])==type(1) :
+                            if args[i] in self.objects :
+                                args[i]=self.objects[args[i]]
+                            else :
+                                print "error with args of effect ",a
+                                print "object ",args[i]," not in object list "
+                                print "in game ",self.player1.name
+                                print "\nwith objects ",self.objects
+                                print [(a.name,a.id) for a in self.objects.values()]
+                                raise "erreur dans effect_list"
+                if a[1]!=None :
+                    if type(a[1])==type(1) :
+                        if a[1] in self.objects :
+                            actinginst=self.objects[a[1]]
+                        else :
+                            print "error with effect ",a
+                            print "object ",a[1]," not in object list "
+                            print "\nwith objects ",self.objects 
+                            print [(a.name,a.id) for a in self.objects.values()]
+                            raise "erreur dans effect_list"
+                    else :
+                       actinginst=a[1]   # spells are not in objects list, not copied and acting directly, they have no owner
+                    if method_name=="effect" and args[1].pv <1  and args[1].name!="choix1" and args[1].name!="choix2" :
+                        if (not isinstance(self,SimulationGame)) or self.player.nv>-1 :
+                            print "                no effect on dead ",args[1].name
+                        continue
+                    try :                              
+                        if args :
+                            exec("actinginst."+method_name+"(*args)")
+                        else :
+                            exec("actinginst."+method_name+"()")
+                    except Exception as e :
+                        print e
+                        print "error with effect ",a
+                        print ' with origin and args names ',[m.name  for m in ([actinginst]+args) if hasattr(m,"name") ]
+                        print self.player1.name,"error on a execution of",actinginst,".",method_name+"(*",args,")"
+                        raise e                   
+                else :
+                    try :
+                        if args :
+                            exec(method_name+"(*args)")
+                        else :
+                            exec(method_name+"()")
+                    except Exception as e :
+                        print e
+                        print self.player1.name,"error on a execute (no object a[1])  ",method_name+"(",a[3],")"
+                        print "\nwith objects ",self.objects 
+                        raise e
+        for i in range(len(self.effect_list)-1,-1,-1) : # ensuite on les supprime
+            if self.effect_list[i][0]<1 :
+                #print "dans effect_list on enelve",self.effect_list[i]
+                del self.effect_list[i]
+        if not self.effect_list :
+            mlist=[ m for m in self.player1.army]+[m for m in self.player2.army]
+            for m in reversed(mlist) :
+                if m.pv<=0 and m.name!="choix1" and m.name !="choix2" :
+                    print "un mort vivant !",m.name,m.id
+                    m.die()
+            #if self.dead_monsters : print "# raz de dead_monsters for ",self.player1.name," rests ",[m.id for m in self.player1.army]+[m.id for m in self.player2.army]
+            self.dead_monsters=[]
     def display_zoom(self) :
         if not(self.animation_runing) :
             pos=pygame.mouse.get_pos()
@@ -359,20 +553,160 @@ class Game():
     
     def get_winner(self):
         return self.winner
-    def getId(self) :
+        
+    def setId(self,object) :
         self.id+=1
-        return self.id
+        self.objects[self.id]=object
+#        if hasattr(object,"name") :
+#            print "%%",self.player1.name," object ",object.__class__.__name__,object.name," devient ",self.id
+        object.id=self.id
+        
+    def saveGame(self):
+        if isinstance(self.player1,Computer) and isinstance(self.player2,Computer) and self.turn<4 :
+            save_slot = "GameSaves/save-turn"+str(self.turn)+".sav"
+        else :
+            save_slot = "GameSaves/save-default.sav"
+        
+        save_dic = {}
+        
+        save_dic["Turn"] = self.turn
+        save_dic["ActualPlayer"] = [self.player1,self.player2].index(self.player)
+        save_dic["FirstPlayer"] = [self.player1,self.player2].index(self.firstplayer)
+        save_dic["Player1Hand"] = [card.constructor() for card in self.player1.hand]
+        save_dic["Player2Hand"] = [card.constructor() for card in self.player2.hand]
+        save_dic["Player1Army"] = [crea.constructor() for crea in self.player1.army]
+        save_dic["Player2Army"] = [crea.constructor() for crea in self.player2.army]
+        save_dic["Player1Deck"] = [card.name for card in self.player1.deck]
+        save_dic["Player2Deck"] = [card.name for card in self.player2.deck]
+        save_dic["Player1Hides"] = self.player1.hide_cards
+        save_dic["Player2Hides"] = self.player2.hide_cards
+        save_dic["Player1Pv"] = self.player1.pv
+        save_dic["Player2Pv"] = self.player2.pv
+        save_dic["creatures_limit"] = self.creatures_limit
+        
+        with open(save_slot,"w") as fil:
+            fil.write(str(save_dic))
+    
+    def loadGame(self):
+        
+        from Sprites import CardInHand
+        import cardPowers,Target
+        from Creature import AnimatedCreature
+        import Spell
+        
+        load_slot = "GameSaves/save-default.sav"
+        #load_slot = "GameSaves/save-turn1.sav"
+        
+        with open(load_slot,"r") as fil:
+            load_dic = eval(fil.read())
+        
+        self.turn = load_dic["Turn"]
+        self.firstplayer = [self.player1,self.player2][load_dic["FirstPlayer"]]
+        self.player = [self.player1,self.player2][load_dic["ActualPlayer"]]
+        self.creatures_limit=load_dic["creatures_limit"]
+        
+        all_cards={}
+        for f in glob.glob("CardFiles/all*.sav") :
+                #print "load cards in ",f
+            d = readMonsters(f)
+            all_cards.update(d)
+        
+        self.player1.deck = [all_cards[c] for c in load_dic["Player1Deck"]]
+        self.player2.deck = [all_cards[c] for c in load_dic["Player2Deck"]]
+        
+        self.player1.pv = load_dic["Player1Pv"]
+        self.player2.pv = load_dic["Player2Pv"]
+        
+        a = 1
+        for player,handadress,armykey,hide in (self.player1,"Player1Hand","Player1Army","Player1Hide"),( self.player2,"Player2Hand","Player2Army","Player2Hide"):            
+            for c in player.deck :
+                c.costint=int(floor(c.getCost()))
+                c.starcost=c.getStars()
+            hand =load_dic[handadress]
+            for c in hand:
+                card = eval(c)
+                player.hand.add(card)
+            army =load_dic[armykey]
+            class Origin():
+                do_not_animate = True
+            #simultaneous = len(army) #used by eval
+            for c in army:
+                #simultaneous -= 1
+                origin = [self.width/2,self.height*(a-1)] # used by eval(c) command below
+                #origin #just to avoid spyder complain
+                crea = eval(c)
+                player.army.add(crea)
+            player.mana = self.turn
+            player.center = player.icon.center
+            player.nb_invocation_done_this_turn = 0
+            player.icon.update()
+            
+            #a=2
+            
+        
+        print load_dic
+        #self.player1.orderArmy()
+        #self.player2.orderArmy()
+        for c in self.player1.hand:
+            c.takePlace()
+        for c in self.player2.hand:
+            c.takePlace()
+        
+        self.endturn_button.update(self.player)
+        self.player.beginOfTurn()
+        
+        
 
 class SimulationGame(Game):
-    def __init__(self,original_game) :
+    def __init__(self,original_game,playingcomputer,tested_action) :
+        from Player import SimulationComputer
+        from Creature import CreatureCopy
         self.turn=original_game.turn
         self.all_animations=None
+        self.animations=None
+        self.creatures_limit = original_game.creatures_limit
+        self.effect_list=[[el[0],el[1],el[2],copy(el[3])] for el in original_game.effect_list if el[0]>0]
+        self.id=original_game.id
+        comp1=SimulationComputer(playingcomputer.name+"-simu1",[],self,playingcomputer.nv-1,tested_action,verbose=playingcomputer.verbose-1)
+        #print "simu game init with ",comp1.name," and effect_list=",self.effect_list
+        comp2=SimulationComputer(playingcomputer.adv.name+"-simu2",[],self,playingcomputer.nv-1,verbose=playingcomputer.verbose-1)
+        comp1.pv,comp2.pv=playingcomputer.pv,playingcomputer.adv.pv
+        comp1.id,comp2.id=playingcomputer.id,playingcomputer.adv.id
+        comp1.army=[CreatureCopy(m,comp1) for m in playingcomputer.army]
+        comp2.army=[CreatureCopy(m,comp2) for m in playingcomputer.adv.army]
+        comp1.hand=[]
+        comp2.hand=[SimulationComputer.NotPlayableCard()]*len(playingcomputer.adv.hand)
+        for c in playingcomputer.hand :
+            if c.__class__.__name__=="CardInHand" :
+                comp1.hand.append(c.content) # a normal player has cardInHand in hand
+            else :
+                comp1.hand.append(c)  # a simulation computer has card in hand
+        comp1.adv=comp2 ; comp2.adv=comp1
+        comp1.deck=[SimulationComputer.NotPlayableCard()]*10
+        comp2.deck=[SimulationComputer.NotPlayableCard()]*10
+        comp1.mana=playingcomputer.mana
+        comp1.nb_invocation_done_this_turn=playingcomputer.nb_invocation_done_this_turn
+        comp2.nb_invocation_done_this_turn=0
+        if playingcomputer is original_game.player1 :
+            self.player=self.player1=comp1
+            self.player2=comp2
+        else :
+            self.player=self.player2=comp1
+            self.player1=comp2
+            #simugame.firstplayer=self.game.firstplayer
+        self.objects={}
+        self.dead_monsters=[CreatureCopy(m,comp2) for m in original_game.dead_monsters]
+        #print (playingcomputer.nv-1)*"    "+"for game copy ",len(self.dead_monsters)," dead monsters"
+        for o in [comp1,comp2]+comp1.army+comp2.army+self.dead_monsters:
+            self.objects[o.id]=o
+        #print "#creation of simulation game for",comp1.name," with obects ",self.objects.keys()
     def changePlayer(self):
         if self.player == self.player1:
             self.player = self.player2
         else :
-            self.player = self.player1        
-        self.player.beginOfTurn()
+            self.player = self.player1
+        if self.player.pv>0 :
+            self.player.beginOfTurn()
     def play(self,n) :
         # n number of actions seen
         while not self.end :
@@ -409,7 +743,11 @@ class NetGame(Game) :
         port.set(str(self.port))
         # adress_wid=Label(None, textvariable=self.cost, background='red',width=5, anchor=W)
         def modifPort(*args) :
-            self.port=port.get()
+            #print "modify port to",port.get()
+            try :
+                self.port=int(port.get())
+            except :
+                port.set("")
         port.trace("w", modifPort)
         port_wid=Entry(port_zone, width=30,textvariable=port)
         port_wid.pack()
@@ -427,7 +765,7 @@ class NetGame(Game) :
         start_button.focus()        
         fenetre.mainloop()
              # Import socket module
-        self.soc = socket.socket()                 # Reserve a port for your service.
+        self.soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    # Reserve a port for your service.
         if self.local==self.host :
             self.soc.bind((self.host, self.port))        # Bind to the port
             print "socket listening"
@@ -478,17 +816,48 @@ if __name__=="__main__" :
     sets["Grimace"]=("La Limace","Limace","Avatars/ForetSauvage#.png")
     sets["Nocturne"]=("Seigneur Sombre","Nocturne","Avatars/SeigneurNoir#.png")
     sets["Ogres"]=("Grand Chef des Ogres","Ogres du Grand Sud","Avatars/ChefOgre#.png")
-    player2_set = sets["Undead"]
+    player2_set = sets["Nain"]
     player1_set = sets["Nain"]
-    game = NetGame()
-    #game.defaultPlayers(player1_set,player2_set)
+    #game = NetGame()
     
-    game.player1=Player(player1_set[0],game.chooseDeck(player1_set[1]),game)
-    #game.player2=hostedPlayed(set2[0],self.chooseDeck(set2[1]),game,2,verbose=1,hide=False)
-    game.player2=HostedPlayer(game)
-    game.initialize()
+    game = Game()
+    
+    game.player1=Player("Ennemi 1",game.chooseDeck("Voyageurs d'Outreplans"),game)#,2,hide=False)
+    #game.player2=Player(player2_set[0],game.chooseDeck(player2_set[1]),game)
+    game.player2=Computer("Ennemi 2",game.chooseDeck("Reveil De La Roche"),game,2,hide=False,verbose=3)
+    #game.player2=HostedPlayer(game)
+    
+    game.initialize(common_start=False)
+    game.loadGame()
     game.play()
-    game.soc.close()
+    """    
+    simu = SimulationGame(game)
+    from Player import SimulationComputer
+    simuplayer = SimulationComputer("mr-simu",[],simu,2)
+    simu.player1 = simuplayer
+    simu.player2 = SimulationComputer("mr-simu2",[],simu,2)
+
+    all_cards={}
+    for f in glob.glob("CardFiles/all*.sav") :
+        #print "load cards in ",f
+        d = readMonsters(f)
+        all_cards.update(d)
+    
+    evaluated =  []
+    simuplayer.hand = []
+    simu.id = 1
+    simu.objects = {}
+    simuplayer.adv = simu.player2
+    simu.player2.army = []
+    for c in all_cards.values():
+        if c.pv>0:
+            simuplayer.army = []
+            print c.constructor()
+            cr = Creature(c,simuplayer,triggerPlayingEffect = False)
+            evaluated.append((cr.getValue(),c.constructor()))
+            print cr.getValue()
+    evaluated.sort()
+    """
     pygame.quit()
 
         

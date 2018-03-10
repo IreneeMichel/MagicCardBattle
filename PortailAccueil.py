@@ -5,7 +5,7 @@ Created on Fri Dec 18 18:15:59 2015
 @author: Cyprien et Frederic MICHEL--DELETIE
 """
 import os
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+#os.chdir(os.path.dirname(os.p ath.realpath(__file__)))
 
 import pygame
 from copy import copy
@@ -13,11 +13,10 @@ import glob
 import math
 
 import CoutCartesMonstres
-import deck_creation
 import Player
 
 import CardGame
-#import pickle
+from copy import copy
 
 from types import MethodType
 
@@ -29,14 +28,8 @@ GREEN = (0,200,20)
 BLACK = (0,0,0)
 RED =(255,0,0)
 
-blocked_decks = deck_creation.blocked_decks
-# print glob.glob("*")
-playable_decks = [file2name(d,'.dek') for d in glob.glob("Decks/*.dek")]
-all_decks = copy(playable_decks)
 
-for d in reversed(playable_decks):
-    if d in blocked_decks:
-        playable_decks.remove(d)
+import tkMessageBox
 
 img_campaign_button = pygame.image.load("gameAnimationImages/PlayCampaignButton.png")
 img_cardedit_button = pygame.image.load("gameAnimationImages/CardEditorButton.png")
@@ -66,24 +59,24 @@ def is_around(i,ii,length):
 
 class Level():
     def __init__(self):
-        pass
+        self.options = ()
     def show(self):
         print "Opponent: ",self.opponent.name
         print "scenario ",self.scenario
         print "Difficulty: ", self.difficulty
 
-    def makeImage(self):
+    def makeImage(self,add=None):
         image = pygame.Surface((900,600))
         image.fill((255,255,255))
         img_avatar = pygame.transform.scale(pygame.image.load("Avatars/"+self.avatar),(150,150))
         w,h = img_avatar.get_size()
         image.blit(img_avatar,(650-w/2,100-h/2))
-        font = pygame.font.SysFont("Calibri",24)
+        font = pygame.font.SysFont("latobolditalic",24)
         text = font.render("Difficulty: "+self.difficulty,False,(3,0,0))
         text2 = font.render("Opponent: "+self.opponent.name,False,(3,0,0))
         image.blit(text,(100,80))
         image.blit(text2,(100,120))
-        font = pygame.font.SysFont("Calibri",14)
+        font = pygame.font.SysFont("latobolditalic",14)
         scenario = self.scenario
         text3="" ; text=[]
         for let in scenario :
@@ -118,6 +111,7 @@ class Button(pygame.sprite.Sprite):
         self.game = game
         pygame.sprite.Sprite.__init__(self)
         self.image = image
+        self.graphism = copy(self.image)
         self.image.convert_alpha()
         self.size = self.image.get_size()
         self.rect = self.image.get_rect()
@@ -131,6 +125,43 @@ class Button(pygame.sprite.Sprite):
             if self.game.click == True:
                 self.functiun(*self.argus)
 
+class Aura(pygame.sprite.Sprite):
+    def __init__(self,position,size):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load('gameAnimationImages/selection_button.png')
+        self.image.convert_alpha()
+        self.image = pygame.transform.scale(self.image,size)
+        self.rect = self.image.get_rect()
+        self.rect.x = position[0]
+        self.rect.y = position[1]
+    
+class InteractiveButton(Button):
+    aura = None
+
+    def update(self):
+        if is_around(self.rect.x+self.size[0]/2,pygame.mouse.get_pos()[0],self.size[0]/2) and is_around(self.rect.y+self.size[1]/2,pygame.mouse.get_pos()[1],self.size[1]/2):
+            if self.game.click == True:
+                self.functiun(*self.argus)
+            else:
+                if not(self.aura):
+                    
+                    image = pygame.image.load('gameAnimationImages/selection_button.png')
+                    image.convert_alpha()
+                    image = pygame.transform.scale(image,self.size)
+                    self.image = copy(self.graphism)
+                    self.image.blit(image,[0,0])
+                    self.aura = True
+                    print "activate aura"
+                    
+                    
+        else:
+            if self.aura:
+                self.image = copy(self.graphism)
+                self.aura = False
+
+
+
+
 class DeckButton(Button):
     def __init__(self,x_center,y_center,image,fonction,game,argus,deck_name):
         Button.__init__(self,x_center,y_center,image,fonction,game,argus)
@@ -141,7 +172,13 @@ class DeckButton(Button):
           with open(name2file("Decks",deck_name,".dek"),"r") as fil:
             deck = eval(fil.read())
             del deck["AvatarImage"]
-            [all_cards[k[0]].getCost() for k in deck.items()] # a cause de RaleDAgonie qui a besoin d un appel a getcost avant
+            print deck_name
+            for k in deck.keys() :
+                try :
+                    all_cards[k].getCost()
+                except Exception as e:
+                    print "error getCost with",k," in deck ",deck_name
+                    raise e
             try :
                 stars = sum([all_cards[k[0]].getStars()*k[1] for k in deck.items()] )
             except :
@@ -204,8 +241,26 @@ class Game():
         self.previous = self.modeSelection
 
         self.all_sprites_list = pygame.sprite.Group()
-        #self.steps = [None,self.modeSelection,self.matchSelection]
+        self.blocked_decks= ["Nains de Omaghetar","Mauvais Reves","Necroman","Mahishasura","Guilde des Braves d'Edemas",
+                             "Horde","Demon","Vikings","Chateau","Le Lac","Pirates des Mers Maudites",
+                             "Reveil De La Roche","Chasseurs des Plaines Neigeuses","MagiePure","Voyageurs d'Outreplans"]
 
+#        self.blocked_creature=[]
+#        for i in self.blocked_decks :
+#            df=os.path.join("Decks",i.replace(" ","_")+".dek")
+#            try :
+#                with open(df,"r") as fil: # problem with python : I wanted to use "rb"
+#                    deck = eval(fil.read())
+#                    self.blocked_creature=self.blocked_creature+deck.keys()
+#            except :
+#                print "ERROR ",df," not found"
+         
+        # print glob.glob("*")
+
+        #self.steps = [None,self.modeSelection,self.matchSelection]
+        #self.initSecondCampaign()
+
+    def initFirstCampaign(self):
         level1=Level()
         level1.image= pygame.image.load("gameAnimationImages/level3.jpg")
         level1.opponent = Profile("Seth le Cruel","Horde",self,2)
@@ -241,7 +296,7 @@ class Game():
         level31.scenario = ["Vous avez vaincu la horde, mais le chef du village, un de vos proches, est gravement blesse. "+
         "Il paraitrait qu'il existe un sort permettant de soigner le chef, decrit dans \"Maitrise de la Magie Cyclique \", un grimmoire "+
         "magique detenu par le mage Antonidus. Alors que vous lui avez poliment demande, il vous rit au nez et vous defie de le vaincre. "+
-        "Vous etes donc contraint a vous battre. Mais a votre arrivee le mage se lance dans des incantations interdites et invoque une armee de demon dirige par un puissant seigneur. "][0]
+        "Vous etes donc contraint a vous battre. Mais a votre arrivee le mage se lance dans des incantations interdites et invoque une armee de demon diriges par un puissant seigneur. "][0]
         level31.avatar = "Demon#.png"
 
         level4=Level()
@@ -273,15 +328,114 @@ class Game():
         level6.avatar = "LeRoi#.png"
 
         self.all_levels = [level1,level2,level3,level31,level4,level5,level6]
-        progress = open("progression","r")
-        progress.seek(0,0)
-        self.level_prog = int(progress.read())
-        progress.close()
-        print "Level are done until level: ",self.level_prog
-        self.unlocked_levels = self.all_levels[:self.level_prog]
-        self.achievment = None
+        
+        self.achievmentImage = None
+        self.lastChance= None
+        self.bg_color = ORANGE
+        
+        self.prog_file_name = "progression"
+        
+        self.slaughter()
+        self.deckSelection(0,None)
+    
+    def initSecondCampaign(self):
+        
+        level1=Level()
+        level1.image= pygame.image.load("gameAnimationImages/lac.jpg")
+        level1.opponent = Profile("Autochtones du Lac","Le Lac",self,2)
+        level1.difficulty = "Quite Easy"
+        level1.scenario = ["Alors que vos troupes se retrouvaient pres d'un lac etrange, vous percevez un eclat brillant venant du fond du lac. Brillant, comme de l'or..."+
+                            "Bien sur, il semble inutile de prevenir vos hommes. Cependant, alors que vous vous approchez de l'eau, la faune du lac s'attaque brusquement a vous." +
+                             " Des pecheurs se joignent alors a eux, et vous vous trouvez forces a faire un choix: combattre ou renoncer. Ce serra combatre."][0]
+        level1.avatar = "LeLac#.png"
+        level1.options = ("Algues",)
+
+        level2 = Level()
+        level2.image= pygame.image.load("gameAnimationImages/pirates.jpg")
+        level2.opponent = Profile('Capitaine "Barbe Fumante"',"Pirates des Mers Maudites",self,2)
+        level2.difficulty = "Quite Hard"
+        level2.scenario = ["Vous trouvez l'objet brillant, il se trouve etre un magnifique combas en or. Mais il n'indique pas le nord, et "+
+                           "un des pecheurs vous informe sur la nature de l'objet: c'est un compas qui mene vers le legendaire Baton de la Lune Rugissante. "+
+                           "C'est un objet d'une valeur inimaginable. Vous voila donc en quete de ce baton mystique, arpentant les dangereuses mers en"+
+                           " se dirigeant vers le nord. Une attaque n'est donc pas surprennante."][0]
+        level2.avatar = "MonCapitaine#.png"
+        level2.options = ("FrozenBoats",)
+
+        level3 = Level()
+        level3.image= pygame.image.load("gameAnimationImages/terrestre.jpg")
+        level3.opponent = Profile("Terre Primitive","Reveil De La Roche",self,2)
+        level3.difficulty = "Hard"
+        level3.scenario = ["Apres plusieurs moi de mer, vous mettez pied sur une ile tres surprennante. Personne ne se sent a l'aise, et on se rend vite compte que l'ile elle meme est maudite par des forces surhumaines."+
+                    " La mort meme semble y avoir plus de povoir. Soudain, alors que la terre se secoue et se fissure,"+
+                               " une voix porteuse de colere resonne gravement depuis les failles..."][0]
+        level3.avatar = "EarthEntity#.png"
+        level3.options = ("AgonieResonante",)
+
+        level4 = Level()
+        level4.image= pygame.image.load("gameAnimationImages/mahishasura.jpg")
+        level4.opponent = Profile("Le Culte du Mahishasura","Mahishasura",self,2)
+        level4.difficulty = "Medium"
+        level4.scenario = ["Heureusement, une autre ile etait tres proche. Vous tombez alors sur des edifices surprennants, temoignants de la presence d'un peuple tres religieux. "+
+                           "Vous identifiez les idoles comme etant indiennes lorsque les cultistes vous reperent et vous attaquent. Il est clair que vous etes pour eux des ennemis."][0]
+        level4.avatar = "Mahishasura#.png"
+        level4.options = ("Lakshmi",)
+        
+        level5 = Level()
+        level5.image= pygame.image.load("gameAnimationImages/jungle.jpg")
+        level5.opponent = Profile("Seth le Cruel","Guilde des Braves d'Edemas",self,2)
+        level5.difficulty = "Quite Easy"
+        level5.scenario = ['"Vous?! Je ne pensais pas vous trouver ici! Cette fois, vous ne me vaincrez pas, car mes nouveaux '+
+                            'allies sont bien meilleurs que la horde stupide, et utiliseront cet espace restreint de combat a leur avantage.'+
+                            ' Je vous presente la grande, et unique, Guilde des Braves d\'Edemas!"'][0]
+        level5.options = ("LimiteNombreCreatures3",)        
+        level5.avatar = "Gobelin#.png"
+        
+        level6 = Level()
+        level6.image= pygame.image.load("gameAnimationImages/toundra.jpg")
+        level6.opponent = Profile("Asmund des Plaines Neigeuses","Chasseurs des Plaines Neigeuses",self,2)
+        level6.difficulty = "Hard"
+        level6.scenario = ["Vous poursuivez votre quete vers le nord. Peu a peu, l'air se refroidit et la nourriture se fait plus rare."
+                            +"Au bout de quelques jours, le froid devient insoutenable et vos hommes commencent a en souffrir."+
+                            " Pire, le desespoir gagne vos troupes. C'est donc avec plaisir que vous decidez d'attaquer la tribu locale en pensant "+
+                            "qu'elle vous permettra une victoire facile qui motivera vos troupes. Ce fut une grosse erreur." ][0]
+        level6.options = ("FroidIntenable",)      
+        level6.avatar = "ChefPlainesNeigeuses#.png"
+
+        level7 = Level()
+        level7.image= pygame.image.load("gameAnimationImages/voyageurs.jpg")
+        level7.opponent = Profile("Les Recifs","MagiePure",self,2)
+        level7.difficulty = "Hard"
+        level7.scenario = ["Vous etes en vue de l'objet de votre quete. Cependant, la magie sort"+
+              " du baton mystique en flots qui forment une mer etrange dans laquelle il faut s'enfoncer."+
+              "Les vagues de magie pure ont scupte les rochers avoisinant en dangereux recifs."+
+              "Les creatures qui viennent ici sont soit dechiquetes par ces recifs, soit elimines par la magie puissante qui sevit ici."][0]
+        level7.avatar = "Recifs#.png"
+        level7.options = ("Recifs",)  
+        
+        level8 = Level()
+        level8.image= pygame.image.load("gameAnimationImages/staff.jpg")
+        level8.opponent = Profile("Voyageurs d'Outreplans","Voyageurs d'Outreplans",self,2)
+        level8.difficulty = "Hard"
+        level8.scenario = ["Alors que vous vous emparez du baton, une force puissante le retire de vos mains et il se met a leviter. Devant les yeux de vos hommes s'ouvre alors un "+
+                            "portail d'une ampleur gigantesque."
+                           +" Une horde de creatures magiques debarque, et une grande louve a l'aspect astral apparait dans le ciel. Une voix terrifiante se fait alors entendre dans la plaine"+
+                           ", elle semble provenir de l'immense visage: \" Cette magie n'est pas pour vous, humains. Un tel pouvoir serait bien trop dangereux entre vos mains. Pour la securite de votre monde, nous devons vous le prendre, "+
+                           "ainsi que detruire tous ceux qui en eurent la connaissance.\" "+
+                           "Vous devez a present vous battre pour vos vies, et pour recuperer le baton (il est donc bien evident que vous perdez si il est detruit)."][0]
+        level8.avatar = "ReineDesVoyageurs#.png"
+        level8.options = ("Baton de La Lune Rugissante","SetHeroLives40")      
+
+        self.all_levels = [level1,level2,level3,level4,level5,level6,level7,level8]
+
+        self.prog_file_name = "progression2"
+        
+        self.achievmentImage = None
+        self.lastChance= None
 
         self.bg_color = ORANGE
+        
+        self.deckSelection(0,None)
+
     def update(self):
         self.click = False
         self.mouse_pos = pygame.mouse.get_pos()
@@ -310,25 +464,62 @@ class Game():
 
     def modeSelection(self):
         self.bg_color = ORANGE
-        button = Button(450,110,img_campaign_button,self.Exemple,self,[])
+        self.bg_img  = None
+        button = Button(450,130,img_campaign_button,self.campaignSelection,self,[])
         self.all_sprites_list.add(button)
-        button = Button(450,295,img_cardedit_button,self.coutCartesMonstres,self,[])
+        button = Button(450,325,img_cardedit_button,self.coutCartesMonstres,self,[])
         self.all_sprites_list.add(button)
-        button = Button(450,460,img_deckcreation_button,self.deckCreation,self,[])
+        button = Button(450,510,img_deckcreation_button,self.deckCreation,self,[])
         self.all_sprites_list.add(button)
-        button = Button(450,635,img_battle_button,self.initDeckSelection,self,[])
+        button = Button(450,695,img_battle_button,self.initDeckSelection,self,[])
         self.all_sprites_list.add(button)
 
-    def matchSelection(self):
+    def matchSelection(self,deck):
+        self.slaughter()
+        self.progression = eval(open(self.prog_file_name,"r").read())
+        if deck not in self.progression.keys():
+            self.progression[deck]=(0,0,None)
+        oldmonstervalues=copy(self.progression[deck][2])
+        # verification du deck
+        if oldmonstervalues :
+            newvalues=[int(m.getCost()*1000) for m in CardGame.Game().chooseDeck(deck)]
+            print sorted(oldmonstervalues)
+            print sorted(newvalues)
+            differences=0
+            for m in CardGame.Game().chooseDeck(deck) :
+                v=int(m.getCost()*1000)
+                if v in oldmonstervalues :
+                    oldmonstervalues.remove(v)
+                else :
+                    print m.name,int(m.getCost()*1000)," modifie ou non present precedemment"
+                    differences+=1
+            print "il reste ",oldmonstervalues
+            if max(len(oldmonstervalues),differences)>2 :
+                result = tkMessageBox.askyesno("Le deck a trop changé","Voulez vous repartir a zero ?")
+                print result
+                if result==True :
+                    self.progression[deck]=[0,0,None]
+                else:
+                    self.slaughter()
+                    global screen
+                    screen = pygame.display.set_mode(size)
+                    self.initialize()
+                    return
+        level=self.progression[deck][0]
+        print "Level are done until level: ",level
+        self.unlocked_levels = self.all_levels[:level+1]
+        
+        self.bg_color = (240,255,245)
+        self.bg_img = pygame.transform.scale(pygame.image.load("gameAnimationImages/6467ea27fd38dec4efc93ce6cecf5bd2.jpg"),size)
         self.play_button = self.viewer = None
-        for n,i in enumerate(self.all_levels):
-            if i in self.unlocked_levels:
+        for n,level in enumerate(self.all_levels):
+            if level in self.unlocked_levels:
                 locked = False
-                image = pygame.transform.scale(i.image,(120,90))
+                image = pygame.transform.scale(level.image,(120,90))
             else:
                 locked = True
                 image = pygame.transform.scale(pygame.image.load("gameAnimationImages/locked-door.png"),(120,90))
-            button = Button(100,110*(n+1)-50,image,self.displayMatch,self,[i,n,locked])
+            button = Button(100,110*(n+1)-50,image,self.displayMatch,self,[level,n,locked,deck])
             self.all_sprites_list.add(button)
         self.previous = self.modeSelection
 
@@ -337,8 +528,15 @@ class Game():
         self.bg_color = BLUE
         #print "n is :",n
         image = pygame.transform.scale(pygame.image.load("gameAnimationImages/BlankButton.png"),(240,100))
-        if n==0:
+        if 1 or n==0:
+            playable_decks = [file2name(d,'.dek') for d in glob.glob("Decks/*.dek")]
+            all_decks = copy(playable_decks)
+        
+            for d in reversed(playable_decks):
+                if d in self.blocked_decks:
+                    playable_decks.remove(d)
             list_ = playable_decks
+            print "limited choice ",
         else:
             list_ =  all_decks
         l = len(list_)
@@ -346,15 +544,15 @@ class Game():
         if n==2 : l+=1
         for x,i in enumerate(list_):
             angle = (x+1)*360/l
-            x_center = int(math.sin(math.radians(angle))*300) + size[0]/2
-            y_center = int(math.cos(math.radians(angle))*300) + size[1]/2
+            x_center = int(math.sin(math.radians(angle))*350) + size[0]/2
+            y_center = int(math.cos(math.radians(angle))*350) + size[1]/2
             #print x_center,y_center,angle
             if n==2:
                 button = DeckButton(x_center,y_center,image,self.playBattle,self,[deck,i],i)
                 self.all_sprites_list.add(button)
                 #print "level 2 selection"
             elif n==0:
-                button = DeckButton(x_center,y_center,image,self.playLevel,self,[i],i)
+                button = DeckButton(x_center,y_center,image,self.matchSelection,self,[i],i)
                 self.all_sprites_list.add(button)
             else:
                 button = DeckButton(x_center,y_center,image,self.deckSelection,self,[2,i],i)
@@ -366,19 +564,34 @@ class Game():
         else:
             angle = 360.
             x_center = int(math.sin(math.radians(angle))*300) + size[0]/2
-            y_center = int(math.cos(math.radians(angle))*300) + size[1]/2
+            y_center = int(math.cos(math.radians(angle))*150) + size[1]/2
             #print x_center,y_center,angle
             button = DeckButton(x_center,y_center,image,self.startNetGame,self,[deck],"NET BATTLE")
             self.all_sprites_list.add(button)
             
             self.adv_type_button = Button(size[0]/2,size[1]/2,image2,self.changePlayerType,self,[])
             self.all_sprites_list.add(self.adv_type_button)
-        self.previous = self.initDeckSelection
+        self.previous = self.modeSelection
                 
     def initDeckSelection(self):
         self.adversory_type = "Computer"
         self.deckSelection(1,None)
         self.previous = self.modeSelection
+    
+    def campaignSelection(self):
+        self.slaughter()
+        self.previous = self.modeSelection
+        self.bg_color = (20,20,20)
+        
+        image = pygame.transform.scale(pygame.image.load("gameAnimationImages/button_campaign1.png"),[700,380])
+        
+        image2 = pygame.transform.scale(pygame.image.load("gameAnimationImages/button_campaign2.png"),[700,380])
+        
+        campaign_button1 = InteractiveButton(size[0]/2,250,image,self.initFirstCampaign,self,[])
+        campaign_button2 = InteractiveButton(size[0]/2,size[1]-250,image2,self.initSecondCampaign,self,[])
+        self.all_sprites_list.add(campaign_button1)
+        self.all_sprites_list.add(campaign_button2)
+        
 
     def changePlayerType(self):
         if self.adversory_type == "Player":
@@ -395,86 +608,110 @@ class Game():
         self.matchSelection()
 
     def coutCartesMonstres(self):
-        CoutCartesMonstres.run()
+        from deck_creation import getBlockedCreatures
+        CoutCartesMonstres.run(getBlockedCreatures(self.blocked_decks))
         pygame.init()
         global screen
 
-        screen = pygame.display.set_mode((900,800))
+        screen = pygame.display.set_mode(size)
         self.slaughter()
         self.__init__()
         self.initialize()
 
     def deckCreation(self):
-        deck_creation.run()
-        global playable_decks
-        playable_decks = [file2name(d,'.dek') for d in glob.glob("Decks/*.dek")]
-        global all_decks
-        all_decks = copy(playable_decks)
-        for d in reversed(playable_decks):
-            if d in blocked_decks:
-                playable_decks.remove(d)
+        from Tkinter import Tk
+        fenetre = Tk()
+        fenetre.title('Clic to add a monster to deck')
+        from deck_creation import DeckCreator
+        a=DeckCreator(fenetre,self.blocked_decks)
+        fenetre.mainloop()
 
-    def displayMatch(self,level,num,locked):
+#        global playable_decks
+#        playable_decks = [file2name(d,'.dek') for d in glob.glob("Decks/*.dek")]
+#        global all_decks
+#        all_decks = copy(playable_decks)
+#        for d in reversed(playable_decks):
+#            if d in blocked_decks():
+#                playable_decks.remove(d)
+
+    def displayMatch(self,level,num,locked,deck):
         print "Match number {0} selected".format(num)
+        if self.viewer:
+            self.viewer.kill()
+        if self.lastChance :
+            self.lastChance.kill()
+            self.lastChance=None
+        if self.achievmentImage :
+            self.achievmentImage.kill()
         if not(locked):
             if self.play_button:
                 self.play_button.kill()
-            self.play_button = Button(475,400,pygame.transform.scale(img_playmission_button,(310,110)),self.selectMatch,self,[level,num])
+            self.play_button = Button(475,500,pygame.transform.scale(img_playmission_button,(310,110)),self.selectMatch,self,[level,num,deck])
             self.all_sprites_list.add(self.play_button)
             level.show()
-            if self.viewer:
-                self.viewer.kill()
+
+            achievement,trynumber,oldmonstervalues = self.progression[deck]
             self.viewer = Viewer(level.makeImage(),(100,20))
             self.all_sprites_list.add(self.viewer)
-            if self.achievment:
-                self.achievment.kill()
-            self.achievment = Viewer(pygame.transform.scale(pygame.image.load(["gameAnimationImages/AchievmentEmpty.png","gameAnimationImages/AchievmentDone.png"][self.level_prog>num+1]),(100,100)),(750,650))
-            self.all_sprites_list.add(self.achievment)
+            if self.all_levels.index(level)==achievement and trynumber==2 and achievement>0 :
+                font = pygame.font.SysFont("latobolditalic",24)
+                text = font.render("Attention, c'est votre derniere chance avant de devoir battre en retraite",False,(3,0,0))
+                image = pygame.Surface((700,40))
+                image.fill((205,205,205))
+                #image.blit(text,(100,190+6*25))
+                image.blit(text,(30,10))
+                self.lastChance = Viewer(image,(200,350))
+                self.all_sprites_list.add(self.lastChance)
+            self.achievmentImage = Viewer(pygame.transform.scale(pygame.image.load(["gameAnimationImages/AchievmentEmpty.png","gameAnimationImages/AchievmentDone.png"][self.progression[deck][0]>num]),(100,100)),(750,650))
+            self.all_sprites_list.add(self.achievmentImage)
 
         else:
             print "Level Locked"
             if self.play_button:
                 self.play_button.kill()
-            if self.viewer:
-                self.viewer.kill()
-            if self.achievment:
-                self.achievment.kill()
-                self.achievment = None
+            self.achievmentImage = None
             self.viewer = Viewer(level.lockedImage(),(100,20))
             self.all_sprites_list.add(self.viewer)
 
-    def selectMatch(self,level,num):
-        self.deckSelection(0,None)
-        self.previous = self.modeSelection
+    def selectMatch(self,level,num,deck):
+        self.previous = self.campaignSelection
         self.level_selected = level
         self.num = num
+        self.playLevel(deck)
 
     def playLevel(self,deck):
         level = self.level_selected
-        print "Match number {0} played".format(self.num)
+        print "*** Match number {0} played".format(self.num)," by ",deck
+        achievement,trynumber,oldmonstervalues = self.progression[deck]
+        if self.all_levels.index(level)==achievement :
+            if trynumber==2 and achievement>0 :
+                self.progression[deck]=(achievement-1,1,oldmonstervalues)
+            else :
+                self.progression[deck]=(achievement,trynumber+1,oldmonstervalues)
+        open(self.prog_file_name,"w").write(str(self.progression))
         import CardGame
         gam = CardGame.Game()
+        self.runninggame = gam
         deck1=gam.chooseDeck(deck,1)
         gam.player1=Player.Player("Player",deck1,gam)#,2,verbose=0,hide=False)
-        gam.player2=Player.Computer(level.opponent.name,gam.chooseDeck(level.opponent.deckname,2),gam,level.opponent.level,verbose=0,hide=True)
+        gam.player2=Player.Computer(level.opponent.name,gam.chooseDeck(level.opponent.deckname,2),gam,2,verbose=0,hide=True)
         if "" in deck1 :
             gam.player1.avatar_img=pygame.image.load(deck1[""])
         else :
             gam.player1.avatar_img=pygame.image.load("Avatars/Chevalier_noir#.png")
         gam.player2.avatar_img=pygame.image.load("Avatars/"+level.avatar)
         gam.initialize()
+        print level.options
+        for opt in level.options:
+            gam.activateOption(opt)
         gam.play()
         winner = gam.get_winner() # player name or None if quit manually
-        if winner == "Player" and self.level_prog==self.all_levels.index(level)+1:
+        if winner == "Player" and self.all_levels.index(level)==achievement:
             print "progression advanced"
-            self.level_prog += 1
-            progress = open("progression","w")
-            progress.write(str(self.level_prog))
-            progress.close()
-            self.unlocked_levels = self.all_levels[:self.level_prog]
-
+            self.progression[deck]=(achievement+1,0,[int(m.getCost()*1000) for m in gam.chooseDeck(deck,1)])
+            open(self.prog_file_name,"w").write(str(self.progression))
+            #self.unlocked_levels = self.all_levels[:self.level_prog]
         self.slaughter()
-        size = (900, 800)
         global screen
         screen = pygame.display.set_mode(size)
         self.initialize()
@@ -482,6 +719,7 @@ class Game():
     def playBattle(self,deck1,deck2):
         print "Arena Battle between {0} and {1}".format(deck1,deck2)
         gam = CardGame.Game()
+        self.runninggame = gam
         gam.player1=Player.Player("Player",gam.chooseDeck(deck1,1),gam)#,2,verbose=0,hide=False)
         if self.adversory_type == "Computer":
             gam.player2=Player.Computer("Opponent",gam.chooseDeck(deck2,2),gam,2,verbose=0,hide=True)
@@ -492,7 +730,6 @@ class Game():
         gam.initialize()
         gam.play()
         self.slaughter()
-        size = (900, 800)
         global screen
         screen = pygame.display.set_mode(size)
         self.initialize()
@@ -502,6 +739,7 @@ class Game():
         from CardGame import NetGame
         from Player import Player,HostedPlayer
         game = NetGame()
+        self.runninggame = game
     #game.defaultPlayers(player1_set,player2_set)   
         game.player1=Player("Player",game.chooseDeck(deck_name),game)
         game.player2=HostedPlayer(game)
@@ -509,38 +747,41 @@ class Game():
         game.play()
 
 
+if __name__=='__main__':
 
-pygame.init()
-
-size = (900, 800)
-screen = pygame.display.set_mode(size)
-
-game = Game()
-
-clock = pygame.time.Clock()
-
-game.done = False
-game.initialize()
-
-"""
-game.adversory_type = "Computer"
-
-scores = {}
-for d in decks:
-
-
-
-for i in all_decks[:1]:
-    for x in all_decks[:1]:
-        game.playBattle(i,x)
- """
-
-
-while not(game.done):
-    screen.fill(game.bg_color)
-    game.update()
-    pygame.display.flip()
-    clock.tick(30)
-
-
-pygame.quit()
+    pygame.init()
+    
+    size = (900, 900)
+    screen = pygame.display.set_mode(size)
+    
+    game = Game()
+    
+    clock = pygame.time.Clock()
+    
+    game.done = False
+    game.initialize()
+    
+    """
+    game.adversory_type = "Computer"
+    
+    scores = {}
+    for d in decks:
+    
+    
+    
+    for i in all_decks[:1]:
+        for x in all_decks[:1]:
+            game.playBattle(i,x)
+     """
+    game.bg_img = None
+    
+    while not(game.done):
+        screen.fill(game.bg_color)
+        if game.bg_img:
+            screen.blit(game.bg_img,[0,0])
+        game.update()
+        pygame.display.flip()
+        clock.tick(30)
+    
+    
+    pygame.quit()

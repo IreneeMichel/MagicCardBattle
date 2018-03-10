@@ -1,6 +1,7 @@
 import Tkinter
 import re
-from Target import getTargetMenu
+from Target import getTargetMenu, getNegativeSpellTargetMenu
+import Level
 import Target
 UP=re.compile('(?=[A-Z])')
 
@@ -8,6 +9,8 @@ UP=re.compile('(?=[A-Z])')
 class Spell :
     hasLevel=False
     has_target=True
+    positive = False
+    negative = False
     positive = False
     isMultiplier=False
     target_locked=False
@@ -49,20 +52,28 @@ class Spell :
             monster.bonus[monster.bonus.index(self)]=new
         self.card.refreshWidget()
         #new.initWidget(self)
-    def initWidget(self,master):
+    def initWidget(self,master,get_spell_menu = None, negative_target = False):
         self.widget=Tkinter.PanedWindow(master,orient=Tkinter.HORIZONTAL)
         self.content=Tkinter.StringVar()
         self.content.set(self.__class__.__name__)
         self.content.trace("w", self.isChanged)
-        self.spell_list=getSpellMenu(master,self.content)
+        if get_spell_menu:
+            self.spell_list=get_spell_menu(master,self.content)
+        else:
+            self.spell_list=getSpellMenu(master,self.content)
         self.widget.add(self.spell_list)
         #Target selector
-        if self.__class__.has_target:        
-            if not(hasattr(self,"target")):
-                self.target = Target.UneCibleAuChoix()        
+        if self.__class__.has_target:
+            if not(hasattr(self,"target")) and not(negative_target):
+                self.target = Target.UneCibleAuChoix()
+            elif not(hasattr(self,"target")) or negative_target and self.target.__class__ == Target.UneCibleAuChoix:
+                self.target = [Target.MasseAllie,Target.MasseEnnemi][self.positive]()
             self.add_target = Tkinter.StringVar(self.widget)
             self.add_target.set(self.target.__class__.__name__) # default value
-            self.addTarget_wid = getTargetMenu(self.widget, self.add_target)
+            if negative_target:
+                self.addTarget_wid = getNegativeSpellTargetMenu(self.widget, self.add_target, self.negative)
+            else:
+                self.addTarget_wid = getTargetMenu(self.widget, self.add_target)
             self.add_target.trace('w', self.modifyTarget)
             self.widget.add(self.addTarget_wid)
         #-------------
@@ -77,11 +88,35 @@ class Spell :
     def getTarget(self,origin):
         if self.has_target:
             return self.target.getTarget(origin)
-    def modifySpellTargetChoice(self,targets) :
-        return targets
     def additionalBonus(self,creature) :
         pass
+    
+    def isAlwaysNegative(self):
+        return (hasattr(self,"target") and self.target.defined_side and ((self.negative and self.target.defined_side == "you") or (self.positive and self.target.defined_side == "him")))
+
+    def willAct(self,creature):   
+        targets= self.target.getTarget(creature)
+        for mons in targets  :
+           if mons.max_pv >0 :
+               for i in mons.bonus :
+                   targets=i.modifySpellTarget(targets)
+        return len(targets)!=0
+    def getValue(self) :  # interret au combat
+        if self.has_target :
+            if self.positive and (self.target.side=="you" or self.target.side=="choose") :
+                return 1.
+            elif self.negative and (self.target.side=="him" or self.target.side=="choose") :
+                return 1.
+            elif self.negative and (self.target.side=="you") :
+                return -1.
+            elif self.positive and (self.target.side=="him") :
+                return -1.
+            else :
+                return 0.2
+        else :
+            return (self.getCost()>0.)
         
+     
 class PasDEffet(Spell) :
     has_target = False
     def getCost(self) :
@@ -115,94 +150,163 @@ class PasDEffet(Spell) :
 
 class SpellWithLevel(Spell) :
     hasLevel=True
-    def __init__(self,level=1,target=Target.UneCibleAuChoix()) :        
+    def __init__(self,level=-1,target=-1) :
+        if level==-1 :
+            level=Level.NbFixe(1)
+        if target==-1 :
+            target=Target.UneCibleAuChoix()
         self.level=level
         self.parent=None
         #from Target import UneCibleAuChoix
         self.target = target
+
     def constructor(self) :
-        return "cardPowers."+self.__class__.__name__+"("+str(self.level)+","+self.target.constructor()+")"
+        #print "level is ",self.level
+        return "cardPowers."+self.__class__.__name__+"("+self.level.constructor()+","+self.target.constructor()+")"
+
     def getSpellDescription(self) :
-        return re.sub(UP,' ',self.__class__.__name__)+' '+str(self.level)   
-    def modifyLevel(self,*args) :
-        print "modified level",self.level
-        self.level=int(self.value.get())
-        self.card.getCost()
-    def initWidget(self,master) :
+        return re.sub(UP,' ',self.__class__.__name__)+' '+self.level.getDescription("",s=False) +self.target.getDescription()
+        
+    def modifyLevelType(self,*args) :
+            print "modified level type",self.level.__class__.__name__
+            self.level=eval("Level."+self.add_level.get())()
+            self.card.getCost()
+            self.card.refreshWidget()
+    
+    def modifyLevel(self):
+         print "modified level to ",self.value.get()
+         self.level.modifyLevel(self.value.get())
+         self.card.getCost()
+         self.card.refreshWidget()
+            
+    def initWidget(self,master, get_spell_menu=None, negative_target = False) :
         self.widget=Tkinter.PanedWindow(master,orient=Tkinter.HORIZONTAL)
         self.content=Tkinter.StringVar()
         self.content.set(self.__class__.__name__)
         self.content.trace("w", self.isChanged)
-        name_wid=getSpellMenu(master,self.content)
+        if not(get_spell_menu):
+            name_wid=getSpellMenu(master,self.content)
+        else:
+            name_wid=get_spell_menu(master,self.content)
+        
         #name_wid.pack()
         self.widget.add(name_wid)
+        
+        self.add_level=Tkinter.StringVar()
+        self.add_level.set(self.level.__class__.__name__)
+        self.level_wid=Level.getLevelMenu(self.widget, self.add_level)
+        self.add_level.trace('w', self.modifyLevelType)
+        self.widget.add(self.level_wid)
+        
         self.value=Tkinter.StringVar()
-        self.value.set(str(self.level))
-        level_wid=Tkinter.Spinbox(self.widget, from_=1, to=1000,textvariable=self.value,
+        self.value.set(str(self.level.level))
+        value_wid=Tkinter.Spinbox(self.widget, from_=1, to=1000,textvariable=self.value,
             command=self.modifyLevel )
-        level_wid.icursor(5)
-        self.widget.add(level_wid)
+        value_wid.icursor(5)
+        self.widget.add(value_wid)
+        
         
         if self.__class__.has_target:
             #Target selector
-            if not(hasattr(self,"target")):
-                self.target = Target.UneCibleAuChoix()        
+            if not(hasattr(self,"target")) and not(negative_target):
+                self.target = Target.UneCibleAuChoix()
+            elif not(hasattr(self,"target")) or negative_target and self.target.__class__ == Target.UneCibleAuChoix:
+                self.target = [Target.MasseAllie,Target.MasseEnnemi][self.positive]()
             self.add_target = Tkinter.StringVar(self.widget)
             self.add_target.set(self.target.__class__.__name__) # default value
-            self.addTarget_wid = getTargetMenu(self.widget, self.add_target)
+            if negative_target:
+                self.addTarget_wid = getNegativeSpellTargetMenu(self.widget, self.add_target, self.negative)
+            else:
+                self.addTarget_wid = getTargetMenu(self.widget, self.add_target)
             self.add_target.trace('w', self.modifyTarget)
             self.widget.add(self.addTarget_wid)
             #ENd of target selector
         return self.widget
         
 
-class SpellWithTwoLevels(Spell) :
+class SpellWithTwoLevels(SpellWithLevel) :
     hasLevel=True
-    def __init__(self,level=1,level2=1,target=Target.UneCibleAuChoix()) :        
+    def __init__(self,level=-1,level2=-1,target=-1) :        
+        if level==-1 :
+            level=Level.NbFixe(1)
+        if level2==-1 :
+            level2=Level.NbFixe(1)
+        if target==-1 :
+            target=Target.UneCibleAuChoix()
         self.level=level
         self.level2 = level2
         self.target = target
         self.parent=None
+        
     def constructor(self) :
-        return ("cardPowers."+self.__class__.__name__+"("+str(self.level)+","+
-               str(self.level)+","+self.target.constructor()+")")
+        return ("cardPowers."+self.__class__.__name__+"("+self.level.constructor()+","+
+               self.level2.constructor()+","+self.target.constructor()+")")
+               
     def getSpellDescription(self) :
-        return re.sub(UP,' ',self.__class__.__name__)+' '+str(self.level)+"/"+str(self.level2)
-    def modifyLevel(self,*args) :
-        print "modified level",self.level
-        self.level=int(self.value.get())
-        self.card.getCost()
-    def modifyLevel2(self,*args) :
-        print "modified level",self.level
-        self.level2=int(self.value2.get())
-        self.card.getCost()
-    def initWidget(self,master) :
+        return re.sub(UP,' ',self.__class__.__name__)+' '+self.level.getDescription("",s=False)+"/ "+self.level2.getDescription("",s=False)
+        
+    def modifyLevel2Type(self,*args) :
+            print "modified level type",self.level.__class__.__name__
+            self.level2=eval("Level."+self.add_level2.get())()
+            self.card.getCost()
+            self.card.refreshWidget()
+
+    def modifyLevel2(self):
+         print "modified level to ",self.value2.get()
+         self.level2.modifyLevel(self.value2.get())
+         self.card.getCost()
+         self.card.refreshWidget()
+
+    def initWidget(self,master, get_spell_menu =None, negative_target=False) :
         self.widget=Tkinter.PanedWindow(master,orient=Tkinter.HORIZONTAL)
         self.content=Tkinter.StringVar()
         self.content.set(self.__class__.__name__)
         self.content.trace("w", self.isChanged)
-        name_wid=getSpellMenu(master,self.content)
+        if not(get_spell_menu):
+            name_wid=getSpellMenu(master,self.content)
+        else:
+            name_wid=get_spell_menu(master,self.content)
         #name_wid.pack()
         self.widget.add(name_wid)
+        
+        self.add_level=Tkinter.StringVar()
+        self.add_level.set(self.level.__class__.__name__)
+        self.level_wid=Level.getLevelMenu(self.widget, self.add_level)
+        self.add_level.trace('w', self.modifyLevelType)
+        self.widget.add(self.level_wid)
+        
         self.value=Tkinter.StringVar()
-        self.value.set(str(self.level))
-        self.value2=Tkinter.StringVar()
-        self.value2.set(str(self.level2))
-        level_wid=Tkinter.Spinbox(self.widget, from_=0, to=1000,textvariable=self.value,
+        self.value.set(str(self.level.level))
+        value_wid=Tkinter.Spinbox(self.widget, from_=0, to=100,textvariable=self.value,
             command=self.modifyLevel )
-        level_wid2=Tkinter.Spinbox(self.widget, from_=0, to=1000,textvariable=self.value2,
+        value_wid.icursor(5)
+        self.widget.add(value_wid)
+        
+        self.add_level2=Tkinter.StringVar()
+        self.add_level2.set(self.level.__class__.__name__)
+        self.level_wid2=Level.getLevelMenu(self.widget, self.add_level2)
+        self.add_level2.trace('w', self.modifyLevel2Type)
+        self.widget.add(self.level_wid2)
+        
+        self.value2=Tkinter.StringVar()
+        self.value2.set(str(self.level2.level))
+        value_wid=Tkinter.Spinbox(self.widget, from_=0, to=100,textvariable=self.value2,
             command=self.modifyLevel2 )
-        level_wid.icursor(5)
-        level_wid2.icursor(5)
-        self.widget.add(level_wid)
-        self.widget.add(level_wid2)        
+        value_wid.icursor(5)
+        self.widget.add(value_wid)      
         if self.__class__.has_target:
             #Target selector
-            if not(hasattr(self,"target")):
-                self.target = Target.UneCibleAuChoix()        
+            if not(hasattr(self,"target")) and not(negative_target):
+                self.target = Target.UneCibleAuChoix()
+            elif not(hasattr(self,"target")) or negative_target and self.target.__class__ == Target.UneCibleAuChoix:
+                self.target = [Target.MasseAllie,Target.MasseEnnemi][self.positive]()
+
             self.add_target = Tkinter.StringVar(self.widget)
             self.add_target.set(self.target.__class__.__name__) # default value
-            self.addTarget_wid = getTargetMenu(self.widget, self.add_target)
+            if negative_target:
+                self.addTarget_wid = getNegativeSpellTargetMenu(self.widget, self.add_target, self.negative)                
+            else:
+                self.addTarget_wid = getTargetMenu(self.widget, self.add_target)
             self.add_target.trace('w', self.modifyTarget)
             self.widget.add(self.addTarget_wid)
         #-------------
@@ -252,10 +356,10 @@ class Multiplier(Spell) :
         return [origin]
 
 
-class Invocation(Spell) :
+class Invocation(SpellWithLevel) :
     isTrigger=True
     hasLevel=False
-    def __init__(self,level=1,monster=None) :
+    def __init__(self,level=Level.NbFixe(1),monster=None) :
         if not monster :
             from Card import Card
             monster=Card('Mouton',1,1)
@@ -264,9 +368,11 @@ class Invocation(Spell) :
         self.parent=None
         self.has_target = False
         self.target = None
+        
     def constructor(self) :
-        return ("Spell."+self.__class__.__name__+"("+str(self.level)+
+        return ("Spell."+self.__class__.__name__+"("+self.level.constructor()+
                 ","+self.monster.constructor()+")")
+                
     def initWidget(self,master) :
         self.monster.parent=self
         self.widget=Tkinter.PanedWindow(master,orient=Tkinter.HORIZONTAL)
@@ -276,46 +382,88 @@ class Invocation(Spell) :
         name_wid=getSpellMenu(self.widget,self.content)
         #name_wid.pack()
         self.widget.add(name_wid)
+
+        self.add_level=Tkinter.StringVar()
+        self.add_level.set(self.level.__class__.__name__)
+        self.level_wid=Level.getLevelMenu(self.widget, self.add_level)
+        self.add_level.trace('w', self.modifyLevelType)
+        self.widget.add(self.level_wid)
+        
         self.value=Tkinter.StringVar()
-        self.value.set(str(self.level))
-        spell_wid=self.monster.init_as_invocation(self.widget)
+        self.value.set(str(self.level.level))
+        value_wid=Tkinter.Spinbox(self.widget, from_=1, to=1000,textvariable=self.value,
+            command=self.modifyLevel )
+        value_wid.icursor(5)
+        self.widget.add(value_wid)
+
+        spell_wid=self.monster.init_as_invocation(self.widget,spells = self.__class__.__name__ == "PlaceCarteDansMain")
         self.monster.card=self.card
-        number_wid = Tkinter.Spinbox(self.widget, from_=1, to=20, textvariable=self.value,command= self.modifyLevel)        
-        number_wid.icursor(5)
-        self.widget.add(number_wid)
+
         self.widget.add(spell_wid)
         return self.widget
-    def modifyLevel(self,*args) :
-        print "modified number",self.level
-        self.level=int(self.value.get())
-        self.card.getCost()
+        
     def getStars(self):
         return 1 + self.monster.getStars()
+
     def getCost(self):
-        return self.monster.getCost()*self.level + (self.level-1)*0.5
+        return self.monster.getCost()*self.level.getCostMultiplier(self) + (self.level.getCostMultiplier(self))*0.5
+    
     def getDescription(self) :
-        return self.__class__.__name__+' de '+ str(self.level) +" " + self.monster.getDescription()
+        return self.__class__.__name__+' de ' + self.level.getDescription(self.monster.getDescription(),s=False)
+    
     def getInlineDescription(self) :
-        return self.__class__.__name__+' de '+ str(self.level) +" " + self.monster.getInlineDescription()
+        #return self.__class__.__name__+' de '+ self.level.getInlineDescription(self.monster.getDescription(),s=False)
+        return self.__class__.__name__+' de '+ self.level.getInlineDescription(self.monster.getInlineDescription(),s=False)
     def getTarget(self,invocator):
         if hasattr(invocator,"is_invocation") and invocator.is_invocation :
-            #print "Invocation does not invocate"
+            print "Invocation does not invocate"
             return []
         else :
-            return [invocator]
+            if not "simu" in invocator.player.name :
+                print "Invocation target is invocator"
+            return [invocator.player]
     def effect(self,invocator,invocator2=None): # pour un sort on a self,origin,target
+        if not "simu" in invocator.player.name :
+            print "invocation effect for ",invocator.player.name
         from Creature import Creature,AnimatedCreature
         self.monster.costint=int(self.monster.getCost())
         self.monster.starcost=self.monster.getStars()
-        for i in range(self.level):
+        for i in range(self.level.getLevel(invocator)):
             if isinstance(invocator,AnimatedCreature) :
                 #print "invocation level=",self.level," army len=",len(invocator.player.army)
-                b=AnimatedCreature(invocator,self.monster,invocator.player,simultaneous=self.level)  #this makes invocator move
+                b=AnimatedCreature(invocator,self.monster,invocator.player)  #this makes invocator move
             else :
-                b=Creature(invocator,self.monster,invocator.player)
+                b=Creature(self.monster,invocator.player,invocator)
+            b.ready=False
             b.is_invocation=True
             #b.card.costint=b.costint
             #b.starcost=self.monster.getStars()
+
+
+class PlaceCarteDansMain(Invocation):
+    def getDescription(self) :
+        return "Place dans votre main \n"+self.level.getDescription("carte " + self.monster.getDescription(),False)
+
+    def getInlineDescription(self) :
+        return "Place dans votre main "+self.level.getInlineDescription("carte " + self.monster.getInlineDescription(),False)
+    
+    def getTarget(self,invocator):
+        return [invocator]
+
+    def effect(self,invocator,invocator2=None): # pour un sort on a self,origin,target
+        self.monster.costint=int(self.monster.getCost())
+        self.monster.starcost=self.monster.getStars()
+        invocator.player.deck = [self.monster]*self.level.getLevel(invocator) + invocator.player.deck
+        invocator.player.drawCard(self.level.getLevel(invocator))
+            #b.card.costint=b.costint
+            #b.starcost=self.monster.getStars()   
+
+    def getStars(self):
+        self.monster.getCost()
+        return 1+self.monster.getStars()
+
+    def getCost(self):
+        return 1.95*self.level.getCostMultiplier(self)-1.5+self.monster.getCost()*0.2
 """
 class InvocationAleatoireDUnType(Spell) :
     isTrigger=True
@@ -415,26 +563,28 @@ class Transformation(Spell) :
         self.widget.add(name_wid)
         spell_wid=self.monster.init_as_invocation(self.widget)
         self.monster.card=self.card
-        if self.__class__.has_target:
-            #Target selector
-            if not(hasattr(self,"target")):
-                self.target = Target.UneCibleAuChoix()        
-            self.add_target = Tkinter.StringVar(self.widget)
-            self.add_target.set(self.target.__class__.__name__) # default value
-            self.addTarget_wid = getTargetMenu(self.widget, self.add_target)
-            self.add_target.trace('w', self.modifyTarget)
-            self.widget.add(self.addTarget_wid)
-        #-------------
+        #Target selector
+        if not(hasattr(self,"target")):
+            self.target = Target.UneCibleAuChoix()        
+        self.add_target = Tkinter.StringVar(self.widget)
+        self.add_target.set(self.target.__class__.__name__) # default value
+        self.addTarget_wid = getTargetMenu(self.widget, self.add_target)
+        self.add_target.trace('w', self.modifyTarget)
+        self.widget.add(self.addTarget_wid)
+    #-------------
         self.widget.add(spell_wid)
         return self.widget
     def getStars(self):
-        return self.monster.getStars()
+        return self.monster.getStars()+1*(self.target.getCostMultiplier(self)>1.1)
     def getCost(self):
-        return 1.7+max(self.monster.getCost()-2,4-self.monster.getCost(),1.5)*1.2*max(1.,self.target.getCostMultiplier(self))
+        return ( 2.+max(
+        self.monster.getCost()-2.5,
+        max(3.-self.monster.att/2.-self.monster.pv/2,self.monster.pv/2)+sum([(-0.4-p.interest)*p.getCost(self.monster) for p in self.monster.bonus])
+        ,1.8))*1.*max(1.,self.target.getCostMultiplier(self))
     def getDescription(self) :
         return self.__class__.__name__+' en '+ self.monster.getDescription()+' de '+self.target.getDescription()
     def getInlineDescription(self) :
-        return self.__class__.__name__+' de '+ str(self.level) +" " + self.monster.getInlineDescription()
+        return self.__class__.__name__+' en '+ self.monster.getInlineDescription()+' de '+self.target.getInlineDescription()
     def effect(self,origin,target):
         if target.pv>0 :
             from copy import copy
@@ -456,17 +606,10 @@ class Transformation(Spell) :
                 newmonster.costint=int(newmonster.getCost())
                 newmonster.starcost=newmonster.getStars()
                 if isinstance(target,AnimatedCreature):
-                    target=AnimatedCreature(target,newmonster,target.player,simultaneous=1)  #this makes invocator move
-                    def oldation(x) :
-                        x.card=oldcard  # after creature appears
-                    from functools import partial
-                    effect=partial(oldation,target)
-                    destination=None
-                    phase0 = (destination,20, None,effect)
-                    from Sprites import Animation
-                    Animation(target,[phase0])
+                    target=AnimatedCreature(target,newmonster,target.player)  #this makes invocator move
+                    self.card=oldcard  # can only be done after creature appears so appearing must be instantaneous
                 else :
-                    target=Creature(target,newmonster,target.player)
+                    target=Creature(newmonster,target.player,target)
                     target.card=oldcard
                 #target.
             else :
@@ -483,16 +626,20 @@ class ConfereBonus(Spell) :
         self.target = target
         self.spell=spell
         self.parent=None
-        self.positive=True
+        if self.spell.interest<0.6 :
+            self.positive=False
+            self.negative=True
+        elif self.spell.interest>0.6 :
+            self.positive=True
+            self.negative=False
+        else :
+            self.positive=False;
+            self.negative=False            
     def constructor(self) :
         return ("Spell."+self.__class__.__name__+"("+self.spell.constructor()+","+
             self.target.constructor()+")")
     def getCost(self) :
         from Card import troll
-        if self.spell.getCost(troll)<0. :
-            self.positive=False
-        else :
-            self.positive=True
         return (abs(self.spell.getCost(troll)-0.2)*1.3 + 1.1)*self.target.getCostMultiplier(self)
     def getSpellDescription(self):
         return "Donne "+self.spell.getDescription()
@@ -505,7 +652,7 @@ class ConfereBonus(Spell) :
             target.bonus.append(b)
             target.starcost+=b.getStars()
             b.afterInvocation(target)
-            target.addMark(self.spell.getInlineDescription(),typ="power",value=[-1,1][self.positive])
+            target.addMark(self.spell.getInlineDescription(),typ="power",value=0) # value determine par interest du bonus
             target.starcost+=[-0.5,0][self.positive]
     def initWidget(self,master) :
         #from Bonus import getBonusMenu
@@ -547,6 +694,6 @@ def getSpellMenu(master,variable) :
     #print list_spells
     bm = Tkinter.OptionMenu(master,variable,*list_spells)
     bm["menu"].insert_separator(nbPossibleSpells)
-    bm["menu"].insert_separator(nbPossibleSpells+2)    
+    bm["menu"].insert_separator(nbPossibleSpells+2)
     return bm
 

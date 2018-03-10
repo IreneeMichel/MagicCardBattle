@@ -12,6 +12,8 @@ class BonusMonstre :
         return "cardPowers."+self.__class__.__name__+"()"
     def afterInvocation(self,creature) :
         pass
+    def whenPlayed(self,creature) :
+        pass    
     def additionalBonus(self,creature) :
         pass
     def otherDeath(self,creature) :
@@ -22,13 +24,15 @@ class BonusMonstre :
         pass
     def afterCombat(self,me,other) :  
         pass
-    def modifyDamage(self,attacker,damage,target) : 
+    def modifyTakenDamage(self,damage) : 
         return damage
     #def damage(self,creature,damage) :   # effect of bonus if damage taken
     #    pass
     def death(self,creature) :   # effect of bonus if creature die
         pass
-    def endturn(self,player):  # Effect at the end of the turn
+    def endturn(self,monster):  # Effect at the end of the turn
+        pass
+    def beginTurn(self,monster):
         pass
     def modifyPlayerSuffer(self,player,damage):
         return damage
@@ -41,6 +45,8 @@ class BonusMonstre :
     def modifyManaCost(self,card,cost):
         return cost
     def modifySpellTargetChoice(self,targets):
+        return targets
+    def modifySpellTarget(self,targets) :
         return targets
     def spellLaunched(self,*args):
         pass
@@ -83,6 +89,7 @@ class BonusMonstre :
         pass   
     
 class PasDeBonus(BonusMonstre) :
+    interest=0
     def getCost(self,monster) :
         return 0.
 
@@ -167,6 +174,7 @@ class BonusMonstreGivingBonus(BonusMonstre) :
         self.spell=spell
         self.parent=None
         self.restriction=""
+        self.interest=self.spell.interest
     def constructor(self) :
         return "cardPowers."+self.__class__.__name__+"("+self.spell.constructor()+")"
     def getDescription(self):
@@ -196,9 +204,13 @@ class BonusMonstreGivingBonus(BonusMonstre) :
 
 class Trigger(BonusMonstre) :
     isTrigger=True
-    def __init__(self,spell=PasDEffet()) :
-        self.spell=spell
+    def __init__(self,spell=None) :
+        if spell :
+            self.spell=spell
+        else :
+            self.spell=PasDEffet()
         self.parent=None
+        self.interest=self.spell.getValue() # init est rappele quand la carte ou creature est cree
     def constructor(self) :
         return "cardPowers."+self.__class__.__name__+"("+self.spell.constructor()+")"
     def getDescription(self) :
@@ -218,13 +230,15 @@ class Trigger(BonusMonstre) :
         spell_wid=self.spell.initWidget(self.widget)
         self.widget.add(spell_wid)
         return self.widget
+
     def getStars(self):
         return self.spell.getStars()
+
 
 def getBonusMenu(master,variable) :
     import cardPowers
     #print dir(cardPowers)
-    class_content=[p for p in dir(cardPowers) if  hasattr(getattr(cardPowers,p),'getCost')]
+    class_content=[p for p in dir(cardPowers) if  hasattr(getattr(cardPowers,p),'getCost') and ('Effect' not in p)]
     list_bonus=[p for p in class_content if issubclass(getattr(cardPowers,p),BonusMonstre)
        and not getattr(cardPowers,p).isTrigger ]
     nbPossibleBonus=len(list_bonus)
@@ -235,3 +249,62 @@ def getBonusMenu(master,variable) :
     bm["menu"].insert_separator(nbPossibleBonus)
     return bm
 
+
+class PlainteMaudite(Trigger) :
+    def getCost(self,monster) :
+        self.getStars()
+        return 0.
+
+    def getStars(self):
+        if self.spell.getCost()+3*self.spell.getStars()>=5:
+            if self.spell.hasLevel :
+                if self.spell.level.level>=1 :
+                    self.spell.level.level-=1
+                    if self.spell.getCost()+3*self.spell.getStars()<5:
+                        self.spell.level.level+=1
+                else :
+                    self.spell.level2.level-=1
+                    if self.spell.getCost()+3*self.spell.getStars()<5:
+                        self.spell.level2.level+=1                    
+            return -2
+        elif self.spell.getCost()+3*self.spell.getStars()>=2:
+            return -1
+        else:
+            return 0
+
+    def whenPlayed(self,creature):
+        if self.spell.willAct(creature):
+            creature.player.launch(creature,self.spell)
+        else:
+            creature.die()
+        if self in creature.bonus :
+            creature.bonus.remove(self) # ameliore l evaluation par l ordi de la valeur de la creature
+        creature.starcost -= self.getStars()
+        #4print "\ncreature.starcost",creature.name,creature.starcost
+    
+    
+    def initWidget(self,master) :
+        self.spell.card=self.card
+        self.spell.parent=self
+        self.widget=PanedWindow(master,orient=HORIZONTAL)
+        self.content=StringVar()
+        self.content.set(self.__class__.__name__)
+        self.content.trace("w", self.isChanged)
+        name_wid=getBonusMenu(self.widget,self.content)
+        #name_wid.pack()
+        self.widget.add(name_wid)
+        spell_wid=self.spell.initWidget(self.widget,get_spell_menu =  getNegativeSpellMenu, negative_target = True)
+        self.widget.add(spell_wid)
+        return self.widget
+    
+
+def getNegativeSpellMenu(master,variable) :
+    from Tkinter import OptionMenu
+    #print dir(cardPowers)
+       
+    list_spells = ['Assassinat','Degat','Bonus','BouclierDivin','ChangementDeCamp','Guerison',
+    'GuerisonTotale','ReduitUnServiteurA1Vie','ReduitUnServiteurA1Att','Sarcophage',"DefausserSoi"]
+    
+    
+    bm = OptionMenu(master,variable,*list_spells)
+    return bm
