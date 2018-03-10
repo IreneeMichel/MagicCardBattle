@@ -1,10 +1,15 @@
-import pickle
+
 import glob
 from copy import copy
 import deck_creation
 import random
 import CardGame
 import Player
+from Card import Card
+import Level
+import Target
+import Spell
+import cardPowers
 import pygame
 import time
 
@@ -17,9 +22,11 @@ files = glob.glob('CardFiles/*.sav')
 print files
 
 for fil in files:
-    f = open(fil,"rb")
-    p = pickle.load(f)
-    cards.update(p)
+    f = open(fil,"r")
+    for c in f:
+        print c
+        card = eval(c)
+        cards[card.name]=card
     f.close()
 
 print cards
@@ -57,16 +64,9 @@ for i in nums:
 for e,p in enumerate(nums):
     print e,": ",ordered[p],", statistic = ",(100.*p)/len(cards),"(",p,")"
 
-
-blocked_decks = deck_creation.get_blocked_decks()
 playable_decks = [file2name(d,".dek") for d in glob.glob("Decks/*.dek")]
 #playable_decks.remove("default")
-playable_decks.remove("Fried Frenchs")
 all_decks = copy(playable_decks)
-for d in reversed(playable_decks):
-    if d in blocked_decks:
-        playable_decks.remove(d)
-print "all_decks: ",all_decks
 
 scores = {}
 for d in all_decks:
@@ -75,9 +75,9 @@ for d in all_decks:
 
 
 for deck in all_decks:
-    with open(name2file("Decks",deck,".dek","rb") as f:
+    with open(name2file("Decks",deck,".dek"),"r") as f:
         print "\n*** ",deck
-        dec = pickle.load(f)
+        dec = eval(f.read())
         print dec
         deck_cards = []
         for m in dec:
@@ -94,17 +94,17 @@ for deck in all_decks:
         powers_by_num = {}
         for p in deck_powers:
             if deck_powers.count(p) in powers_by_num:
-                if p in powers_by_num[deck_powers.count(p)]:
+                if p.__name__ in powers_by_num[deck_powers.count(p)]:
                     pass
                 else:
-                    powers_by_num[deck_powers.count(p)].append(p)
+                    powers_by_num[deck_powers.count(p)].append(p.__name__)
             else:
-                powers_by_num[deck_powers.count(p)] = [p]
+                powers_by_num[deck_powers.count(p)] = [p.__name__]
         print "Powers of deck by num ",powers_by_num
         keys = powers_by_num.keys()
         keys.sort()
         print "Diversity  ",sum(len(i) for i in powers_by_num.values())
-        print "Principal Powers are ",",".join("/".join(p.__name__ for p in powers_by_num[k]) for k in reversed(keys[-3:]))
+        print "Principal Powers are ",",".join("/".join(p for p in powers_by_num[k]) for k in reversed(keys[-3:]))
                 
         
 
@@ -113,8 +113,15 @@ for deck in all_decks:
 historic = []
 #print all_decks
 tyio = 0
+"""
 
-all_decks = ["Chateau","Nains de Omaghetar","Nocturne","Ogres du Grand Sud","Demon","Bourrin","Vikings","Horde","Necroman","Mauvais Reves","default"]
+
+blocked_decks = deck_creation.get_blocked_decks()
+for d in reversed(playable_decks):
+    if d in blocked_decks:
+        playable_decks.remove(d)
+print "all_decks: ",all_decks
+
 print "\n\nPlan: "
 nb = 0
 ad = copy(all_decks)
@@ -162,3 +169,4 @@ for s in scores.keys():
 print "\nBATTLE HISTORIC:"
 for h in historic:
     print int(h[5]/60),"'",h[5]%60,": Battle between ",h[0]," and ",h[1],": winner is ",h[2],"(turn ",h[3],", first player was ",h[4],")"
+"""
