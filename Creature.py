@@ -12,9 +12,8 @@ wound_img.set_colorkey((0,0,0))
 
 class Creature() :
     def __init__(self,card,player,is_invocation=False,origin=None,bonus=False,damages=0,triggerPlayingEffect=False,param={}) :
-        if hasattr(player,"verbose") and player.verbose>6 : print "      Creature __init__ ",card.name," from ",player.name
+        if hasattr(player,"verbose") and player.verbose>3 : print "      Creature __init__ ",card.name," from ",player.name
         # origin is usually a cardInHand
-        #print "creature init",card.name
         self.card=card
         if param : # sert pour le loadgame, beaucoup seront reecrases ensuite
             for n,v in param.iteritems() :
@@ -51,7 +50,7 @@ class Creature() :
         player.army.append(self)
         #print "army apres append",player,[(c.id,c.name) for c  in player.army]
 
-        if self.pv==0 :
+        if card.pv==0 :
             # it is a spell
             #if not(self.bonus):
             #    print "creature",self,self.name,"de",self.player.name," bonus=",self.bonus
@@ -84,18 +83,6 @@ class Creature() :
                 if m is not self :
                     for b in m.bonus :
                         b.additionalBonus(self)
-<<<<<<< HEAD
-            for m in player.adv.army :
-                if m.pv > 0 :
-                    for b in m.bonus :
-                        b.otherMonsterCreation(self)
-            if len(player.army)>9 and "choix1"!=self.name and "choix2"!=self.name :
-                player.sacrify()
-            self.updateImage()
-    def beginTurn(self) :
-        #if isinstance(self,AnimatedCreature) : print "normal begin turn de ",self.name
-        self.ready=True
-=======
             if triggerPlayingEffect:
                 for m in player.adv.army :
                     if m.pv > 0 :
@@ -115,7 +102,6 @@ class Creature() :
         self.ready=True
         for b in self.bonus:
             b.beginTurn(self)
->>>>>>> 5ccddee2290a23e2fb57517e9dfee56d8bc03acb
         self.updateImage()
     def getInlineDescription(self):
         return self.name +" ("+str(self.att)+"  "+str(self.pv)+' '.join(
@@ -138,15 +124,9 @@ class Creature() :
                 #print b.__class__.__name__
                 b.beforeCombat(self,target)
         self.combatSequence(target)
-<<<<<<< HEAD
-        self.afterCombat(target)
-        target.afterCombat(self)
-        self.updateImage()
-=======
         self.game.effect_list.append([2,self.id,"afterCombat",[target.id]]) # apres le defend
         self.game.effect_list.append([2,target.id,"afterCombat",[self.id]])
         self.game.effect_list.append([2,self.id,"updateImage",[]])
->>>>>>> 5ccddee2290a23e2fb57517e9dfee56d8bc03acb
     def afterCombat(self,adv) :
         #from Player import Player
         #if not isinstance(adv,Player) : print "aftercombat basic",self.name
@@ -160,7 +140,7 @@ class Creature() :
         #target.defend(self)
         #if self.att>0 : print "combat sequence",self.name,target.name,'de',target.player.name
     def attack(self,target) :
-        print "att",[(m.name,m.att) for m in self.player.army]
+        #print "att",[(m.name,m.att) for m in self.player.army]
         damage=self.att
 #        for b in self.bonus :
 #            damage=b.modifyDamage(self,damage,target)
@@ -376,10 +356,7 @@ class AnimatedCreature(Sprite,Creature) :
 
     def updateImage(self):
         #print "UPDATE_IMG"
-<<<<<<< HEAD
-=======
         # on va creer le graphisme qui est l image de base modifiee par debats, ...
->>>>>>> 5ccddee2290a23e2fb57517e9dfee56d8bc03acb
         # le graphism a une taille connue, l image peut etre reduite 
         self.graphism = copy(self.baseImage)
         if self.max_pv!=0 :
@@ -436,17 +413,7 @@ class AnimatedCreature(Sprite,Creature) :
                 #print "gris",self.name,self.pv
                 self.graphism.set_alpha(180)
         self.image = pygame.transform.scale(self.graphism,self.size)
-<<<<<<< HEAD
-        if self.ready or self.player!=self.game.player or self.pv==0 :
-            print "ready ",self.ready,self.name
-            self.graphism.set_alpha(255)
-        else :
-            print "gris",self.name,self.pv
-            self.graphism.set_alpha(180)
-            self.image.set_alpha(180)
-=======
         #self.image.set_alpha(180)
->>>>>>> 5ccddee2290a23e2fb57517e9dfee56d8bc03acb
               
     def addMark(self,name,pos="center",typ="external",level=1,size=0,value=0) :
         # a mark is list of an origin (string or instance), an image (or list of) (string or image), a position on card
@@ -546,15 +513,6 @@ class AnimatedCreature(Sprite,Creature) :
         return (x,y)
         
     def takePlace(self,add=0):
-<<<<<<< HEAD
-        #print "          take place de",self,self.name
-        Animation(self,[(self.getPlace(add),3, self.size,None)])
-        
-    def endTurn(self):
-        self.graphism.set_alpha(255)         
-        Creature.endTurn(self)
-
-=======
         #print "          take place de",self.name," en ",self.getPlace(add)[0]
         Animation(self,[(self.getPlace(add),4, self.size)])
         
@@ -570,7 +528,6 @@ class AnimatedCreature(Sprite,Creature) :
         bonus = "["+",".join([b.constructor() for b in self.bonus])+"]"
         paramdict=repr({att : getattr(self,att) for att in dir(self) if type(getattr(self,att)) in (type(1),type(True))})            
         return "AnimatedCreature(origin,"+self.card.constructor()+","+player+",bonus="+bonus+",damages="+str(self.max_pv-self.pv)+",param="+paramdict+")"
->>>>>>> 5ccddee2290a23e2fb57517e9dfee56d8bc03acb
       
             
             

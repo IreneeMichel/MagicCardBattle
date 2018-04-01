@@ -188,11 +188,7 @@ class Animation :
                     print "ERROR with unnamed sprite"
             else :
                 self.subject.image = pygame.transform.scale(self.subject.graphism,self.subject.size)
-<<<<<<< HEAD
-                print "animate"
-=======
                 #print "animate"
->>>>>>> 5ccddee2290a23e2fb57517e9dfee56d8bc03acb
         self.phase_time += 1
         if self.phase_time == self.phase_end_time:
             self.anim_num += 1

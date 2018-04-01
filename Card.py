@@ -189,6 +189,7 @@ class Card :
                     ("GardienDeVie","QuandIlEstBlesse"),("Charge","NePeutPasRisposter"),("Furie","ALaPlaceDeLAttaque"),
                     ("NePeutPasRiposter","NePeutPasAttaquer"),("NePeutPasRiposter","CoutReduit"),
                     ("Charge","CriDeGuerrre"),("Insaisissable","InsensibleALaMagie"),("Charge","Errant"),("CriDeGuerre","Errant"),
+                    ("Errant","RaleDAgonie"),
                     ("BonusParEnnemi","Determine"),("QuandIlEstBlesse","Incassable"),("Souffrant","QuandIlEstBlesse") ] :
             if b1 in nb and b2 in nb :
                 showinfo("Not Allowed","You can't have this combination of powers: {0} and {1}".format(b1,b2))
@@ -216,7 +217,7 @@ class Card :
         global all_monsters
         all_monsters.update(loaded_monsters)
         #print "window reinit done"
-        with open(self.dumping_file,"wb") as savefile :
+        with open(self.dumping_file,"wb") as savefile :      
             savefile.write("\n".join([m.constructor() for k,m in sorted(loaded_monsters.items())]))
 #        with open(self.dumping_file+".old","rb") as filepickle :
 #            print "now in file", self.dumping_file,":",pickle.load(filepickle).keys()
@@ -239,9 +240,8 @@ class Card :
     def Open(self,*args) :
         print "open monster ",  self.opening.get()
         #deck_with_card =  self.deck_check(self.opening.get())
-        lv = max(eval(localopen("progression2","r").read()).values())
         creature = Card.monster_list[self.opening.get()]
-        if creature.monster_type != "all" and not(creature.monster_type != "unknown" and lv<8 and creature.name in Card.blocked_creature) :
+        if not ( creature.name in Card.blocked_creature) :
             self.card_win.pack_forget()
             fenetre=self.card_win.master
             #for i in Card.monster_list.keys() :
@@ -345,7 +345,7 @@ class Card :
     def refreshWidget(self) :
         #print "refresh"
         self.card_win.pack_forget()
-        
+        import unicodedata
         #Card window      
         self.card_win = PanedWindow(self.card_win.master, orient=VERTICAL)
         self.card_win.pack(side=TOP, expand=True, fill=BOTH, pady=2, padx=2)
@@ -356,6 +356,13 @@ class Card :
         name = StringVar() 
         name.set(self.name)
         def modifName(*args) :
+            try :
+                assert('"' not in name.get())
+                name.get().encode('ascii')
+            except Exception as e:
+                print "error on name"
+                name.set(self.name)
+                return
             old = self.name in Card.blocked_creature
             self.name=name.get()
             if old or self.name in Card.blocked_creature :
@@ -453,8 +460,7 @@ class Card :
         
         #Create save zone
         save_zone = PanedWindow(self.card_win, orient=HORIZONTAL)
-        lv = max(eval(localopen("progression2","r").read()).values())
-        if self.monster_type != "all" and not(lv<8 and self.name in Card.blocked_creature) :
+        if self.monster_type != "all" and not(self.name in Card.blocked_creature) :
             save_wid = Button(save_zone, text="Save", command=self.postAndSave)
         elif self.monster_type != "all" : 
             save_wid = Button(save_zone, text="creature in campaign", command=None)
@@ -647,7 +653,8 @@ class Card :
         self.content=StringVar()
         self.content.set(self.name)
         self.content.trace("w", self.is_changed_as_invocation)
-        l = [ m for m in Card.monster_list.keys() if (spells or all_monsters[m].pv>0) and not(m in Card.blocked_creature)]
+        l = [ m for m in Card.monster_list.keys() if (spells or all_monsters[m].pv>0) and not(m in Card.blocked_creature) 
+                  and (not "PlainteMaudite" in all_monsters[m].constructor()) and not any([b.__class__.__name__=="Charge" for b in all_monsters[m].bonus]) ]
         """
         if self.parent.name in l:
             l.remove(self.parent.name)
