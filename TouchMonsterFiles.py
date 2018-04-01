@@ -113,7 +113,7 @@ for f in glob.glob("CardFiles/*_monsters.sav"):
                  try:
                      m.name=goodname
                      if "CardFiles" not in m.dumping_file :
-                         m.dumping_file=f+" or CardFiles\\"+m.dumping_file
+                         m.dumping_file="CardFiles/"+m.dumping_file
                      m.save()
                      try:
                          co=m.getCost()
@@ -124,7 +124,7 @@ for f in glob.glob("CardFiles/*_monsters.sav"):
                      #time.wait(1)
                  except Exception as err:
                      print err
-                     problem.append([f,n,"part 2.5"])                    
+                     problem.append([f,n,"part 2.5 : recherche image"])                    
              except :
                 problem.append([f,n,"part 2"])
          except:
