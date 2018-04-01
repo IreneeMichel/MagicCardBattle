@@ -118,7 +118,7 @@ for f in glob.glob("CardFiles/*_monsters.sav"):
                      try:
                          co=m.getCost()
                          if (co-int(co))<0.5 and m.pv>0 :
-                             bad_opt[n]=(co-int(co))
+                             bad_opt[n]=(co,m.monster_type)
                      except:
                         problem.append([f,n,"part 3"])
                      #time.wait(1)

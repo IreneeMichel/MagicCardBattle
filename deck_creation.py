@@ -13,18 +13,16 @@ from outils import file2name
 
 #os.chdir('C:\Users\test\Documents\Programmation\MCB2')
 
-blocked_decks = ["Nains de Omaghetar","Mauvais Reves","Necroman","Horde","Demon","Vikings","Chateau"]
-
-
-from Card import readMonsters
-all_cards={}
-for f in glob.glob("CardFiles/*_monsters.sav"):
-    #print "load cards in ",f
-    try :
-        d = readMonsters(f)
-    except :
-        print "#### ERROR with ",f
-    all_cards.update(d)
+from Card import readMonsters,all_monsters
+#all_cards={}
+#for f in glob.glob("CardFiles/*_monsters.sav"):
+#    #print "load cards in ",f
+#    try :
+#        d = readMonsters(f)
+#    except Exception,e :
+#        print "#### ERROR with ",f
+#        raise e
+#    all_cards.update(d)
 
 #all_deks={}
 #for f in glob.glob("Decks/*.dek"):
@@ -39,10 +37,22 @@ for f in glob.glob("CardFiles/*_monsters.sav"):
 
 from PIL import Image, ImageTk
 
+def getBlockedCreatures(blocked_decks) :
+    blocked_creature=[]
+    for i in blocked_decks :
+        df=os.path.join("Decks",i.replace(" ","_")+".dek")
+        try :
+            with open(df,"r") as fil: # problem with python : I wanted to use "rb"
+                deck = eval(fil.read())
+                blocked_creature=blocked_creature+deck.keys()
+        except :
+            print "ERROR ",df," not found"
+    return blocked_creature 
 
 class DeckCreator():
-    def __init__(self,fenetre):
-        
+    def __init__(self,fenetre,blocdeck):
+        self.blocked_decks=blocdeck
+        self.blocked_creature=getBlockedCreatures(self.blocked_decks)
         self.galeries = []
         from Card import readMonsters
         self.all_cards_open = readMonsters("CardFiles/unknown_monsters.sav")
@@ -76,7 +86,9 @@ class DeckCreator():
         galerie1=PanedWindow(fenetre, orient=HORIZONTAL)
         self.stars=[]
         print self.all_cards_open
-        for a in self.all_cards_open.keys():
+        for a in self.all_cards_open.keys() :
+            if a in self.blocked_creature :
+                continue
             nb_Carte_p_ligne+=1
             if nb_Carte_p_ligne>10:
                 nb_Carte_p_ligne=0
@@ -89,11 +101,14 @@ class DeckCreator():
             self.stars.append(self.all_cards_open[a].getStars())
             self.filename=a.replace(" ","_")+'.png'
             print self.filename
-            image = Image.open("Cards/"+self.filename).resize((120,180))
-            print image,"   ", type(image)==type(Image.open("Cards/"+self.filename))
-            p  = ImageTk.PhotoImage(image)
-            #print p
-            self.im.append(p)
+            try :
+               image = Image.open("Cards/"+self.filename).resize((120,180))
+               print image,"   ", type(image)==type(Image.open("Cards/"+self.filename))
+               p  = ImageTk.PhotoImage(image)
+               #print p
+               self.im.append(p)
+            except :
+               print "pb avec image ","Cards/"+self.filename
             #print a
             galerie1.pack()
            # galerie_utilisee='galerie'+self.ligne
@@ -132,12 +147,12 @@ class DeckCreator():
                 showinfo("Careful...","Your deck have too much stars to be used in the Campaign (limit is 15)")
         name=self.name.get().strip().replace(" ","_")+".dek"
         import os
-        lv = int(open("progression","r").read())
-        if  lv<8 and os.path.basename(self.name.get()) in blocked_decks :
+        lv = max(eval(open("progression2","r").read()).values())
+        if os.path.basename(self.name.get()) in self.blocked_decks :
             print "deck protege pour la campagne"
             return
         else :
-            print self.name.get(),blocked_decks
+            print self.name.get(),self.blocked_decks
         if not name.startswith("Decks"):
                 print "deck put in Decks/"
                 name=os.path.join("Decks",name)
@@ -161,10 +176,10 @@ class DeckCreator():
 
     def openDeck(self,*args) :
         name = self.opening.get()
-        if (file2name(name) in blocked_decks) or " (not available)" in name:
-            lv = int(open("progression","r").read())
-            print "La campagne est au niveau ",lv," /7"
-            if lv >= 7:
+        if (file2name(name) in self.blocked_decks) or " (not available)" in name:
+            lv = max(eval(open("progression2","r").read()).values())
+            print "La campagne est au niveau ",lv," /8"
+            if lv >= 8:
                 self.loadDeck(name)
             else:
                 print "Deck is not accessible"
@@ -227,21 +242,29 @@ class DeckCreator():
         self.name_wid=Entry(master=self.firstline, width=30,textvariable=self.name)
         self.stars=0
         for creature in self.deck :
-            if (creature not in all_cards) and creature!="AvatarImage":
-                if creature.capitalize() in all_cards :
+            if (creature not in all_monsters) and creature!="AvatarImage":
+                if creature.capitalize() in all_monsters :
                     self.deck[creature.capitalize()]=self.deck[creature]
                     del self.deck[creature]
                 else :
-                    print 'ERROR : card not found : "'+creature+'" in ',all_cards.keys()
+                    print 'ERROR : card not found : "'+creature+'" in ',all_monsters.keys()
+        nbcoutreduit=0
+        nbgainmana=0
+        coutred=re.compile("CoutReduit")
+        gain=re.compile("GainMana")
         for s,n in self.deck.items():
             if s != "AvatarImage":
                 try:
-                    all_cards[s].getCost()
-                    self.stars+=all_cards[s].getStars()*n
+                    all_monsters[s].getCost()
+                    self.stars+=all_monsters[s].getStars()*n
                 except:
                     del self.deck[s]
                     print "error with ",s,n
-        print"stars",self.stars
+                nbcoutreduit+=len(coutred.findall(all_monsters[s].constructor()))*n
+                nbgainmana+=len(gain.findall(all_monsters[s].constructor()))*n
+        print "cout reduits",nbcoutreduit
+        print "stars",self.stars
+        print "gain mana",nbgainmana
         self.deck_stars=Label(master=self.firstline, text=self.stars)
         self.firstline.add(self.deck_stars)
         self.firstline.add( self.name_wid)
@@ -274,9 +297,7 @@ class DeckCreator():
         self.opening.set("Open another deck")
         choice = [os.path.basename(fname)[0:-4].replace("_"," ") for fname in glob.glob("Decks/*.dek")]
         if choice :
-            lv = int(open("progression","r").read())
-            if lv<8:
-              choice=[name+" (not available)"*(name in blocked_decks) for name in choice]
+            choice=[name+" (not available)"*(name in self.blocked_decks) for name in choice]
             open_wid = OptionMenu(self.deck_widg, self.opening,*choice)
             open_wid.pack()
             self.deck_widg.add(open_wid)
@@ -303,29 +324,25 @@ class DeckCreator():
         self.deck_widg.add(avatar_wid)
         
         
-        if self.nb_card>29:
+        if (self.nb_card>29 and nbcoutreduit<7 and nbgainmana<7) or __name__=='__main__':
             if self.stars <= 15:
                 self.deck_widg.add(Button(master=self.deck_widg,  command= self.save ,text='save deck'))
             else:
                 self.deck_widg.add(Button(master=self.deck_widg,  command= self.save ,text='save deck (but beware there is too much stars)'))
         else :
-           self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text='30 cards and 15 stars needed to save deck')) 
+            if self.nb_card<30:                
+                self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text='30 cards and 15 stars needed to save deck')) 
+            elif nbcoutreduit>6:                
+                self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text=str(nbcoutreduit)+' couts reduits? Pas de ca ici.')) 
+            elif nbgainmana>6:                
+                self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text=str(nbgainmana)+' gains mana, c\'est trop')) 
+                
         print "fin show"
         self.deck_widg.pack()
         self.firstline.pack()
 
-
-blocked_creature=[]
-for i in blocked_decks :
-    df=os.path.join("Decks",i.replace(" ","_")+".dek")
-    try :
-        with open(df,"r") as fil: # problem with python : I wanted to use "rb"
-            deck = eval(fil.read())
-            blocked_creature=blocked_creature+deck.keys()
-    except :
-        print "ERROR ",df," not found"
-    
-    
+           
+     
 #def checkSave(creaturename):
 #        import os
 #        decks = glob.glob(os.path.join("Decks","*.dek"))
@@ -338,14 +355,11 @@ for i in blocked_decks :
 #                    content.append(d)
 #        return content
 
-def run():
+if __name__=='__main__':
     fenetre = Tk()
     fenetre.title('Clic to add a monster to deck')
-    a=DeckCreator(fenetre)
+    a=DeckCreator(fenetre,[])
     fenetre.mainloop()
-
-if __name__=='__main__':
-    run()
     
 
         

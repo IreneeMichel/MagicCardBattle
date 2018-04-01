@@ -161,14 +161,18 @@ class Animation :
     def __init__(self,subject,phases,new=False) :
         #print "init InGameCard"
         self.subject=subject
+        if len(phases) < 1 :
+            raise "fatal error : animation with no phases"
         self.anim_phases=phases
         self.anim_num=0
-        subject.game.all_animations.append(self)
         if new :
-            subject.game.temporary_sprites.add(subject)
+            subject.game.temporary_sprites.add(self.subject)
+        subject.game.animations.append(self)
         self.init_phase()
         #            def __init__(self,dest,time,size,effect):
     def animate(self):
+        if not hasattr(self,"pos") :
+            print "Animation : no pos ? for",self,self.subject
         if self.pos :
             self.subject.setPosition(self.pos.pop())
             self.subject.size = (int(self.subject.size[0] + self.increase_size[0]), int(self.subject.size[1] + self.increase_size[1]))
@@ -184,19 +188,21 @@ class Animation :
                     print "ERROR with unnamed sprite"
             else :
                 self.subject.image = pygame.transform.scale(self.subject.graphism,self.subject.size)
+<<<<<<< HEAD
                 print "animate"
+=======
+                #print "animate"
+>>>>>>> 5ccddee2290a23e2fb57517e9dfee56d8bc03acb
         self.phase_time += 1
         if self.phase_time == self.phase_end_time:
             self.anim_num += 1
-            effect_pending=self.effect
-            self.init_phase() # une animation finissant par un effet (sort) est enleve de la liste pour dire qu on peut agir
-            if effect_pending : 
-                effect_pending()
+            self.init_phase()  
     def init_phase(self):
+        #print "anim num", self.anim_num , "for ",self
         if self.anim_num < len(self.anim_phases):
             self.phase_time = 0
             phase = self.anim_phases[self.anim_num]
-            destination,delay,endsize,self.effect=phase             
+            destination,delay,endsize=phase             
             #self.actual_phase = phase
             if endsize :
                 self.increase_size = ((endsize[0]-self.subject.size[0])/delay,(endsize[1]-self.subject.size[1])/delay)
@@ -212,9 +218,14 @@ class Animation :
         else:
             #print "fin animation",type(self.subject)
             #a=len(self.subject.game.all_animations)
-            self.subject.game.all_animations.remove(self)
+            self.subject.game.animations.remove(self)
             if self.subject in self.subject.game.temporary_sprites :
                 self.subject.game.temporary_sprites.remove(self.subject)
+            else :
+                self.subject.rect = self.subject.image.get_rect()
+                self.subject.rect.x = self.subject.center[0]-self.subject.size[0]/2
+                self.subject.rect.y = self.subject.center[1]-self.subject.size[1]/2
+
              #print "len ",a,"->",len(self.subject.game.all_animations)
             #self.subject.pos_x = self.destination_x
             #self.subject.pos_y = self.destination_y
@@ -255,19 +266,25 @@ class CardInHand(Sprite) :
             self.image = pygame.transform.scale(image,(163, 240))
         self.image.convert_alpha()
         Sprite.__init__(self,player.deck_pos,self.image)
+        
+        card.costint = int(card.getCost())
+        card.starcost = card.getStars()
         self.costint = card.costint
         self.starcost=card.starcost
-        self.all_effects = {}
         self.game = player.game
         self.player=player
+        self.num = num
+        self.showed = show
+        self.cost_background = pygame.transform.scale(pygame.image.load("gameAnimationImages/cost_mark.png"),[60,112])
+        self.cost_background2 = pygame.transform.scale(pygame.image.load("gameAnimationImages/cost_mark2.png"),[60,112])
 
         #self.destination_y = 0
         #self.destination_x = 100 + (player.__class__.__name__=="Player")*(1200)
         time=3+3*(player.__class__.__name__=="Player")    
-        phase0  = (self.center,wait+1,self.size,None)
-        phase1 = ((self.game.width/2,450),time,(200,300),None)
-        phase2 = ((self.game.width/2,450),time/2,(300,450),None)
-        phase4 = (self.position(num,handlen),10, self.size,self.takePlace)
+        phase0  = (self.center,wait+1,self.size)
+        phase1 = ((self.game.width/2,450),time,(200,300))
+        phase2 = ((self.game.width/2,450),time/2,(300,450))
+        phase4 = (self.position(num,handlen),10, self.size)
         anim_phases = [phase0,phase1,phase2,phase4]
         Animation(self,anim_phases)        
         #self.wait = wait
@@ -282,12 +299,23 @@ class CardInHand(Sprite) :
             image = pygame.image.load("Cards/"+name+".png")
         else :
             image=card.image
-        self.image = pygame.transform.scale(image,(163, 240))
+        self.graphism = pygame.transform.scale(image,(163, 240)) # graphism ecrase image dans animation
+    
+    def updateImage(self):
+        if not(self.player.hide_cards):
+            cost = int(self.player.actualCost(self))            
+            self.graphism.blit([self.cost_background,self.cost_background2][self.player.mana<cost],[14-3*len(str(cost)),12])
+            font = pygame.font.SysFont("Calibri Bold",60)
+            color = ((0,0,0),(0,89,0))[cost!=int(self.content.getCost())]
+            text = font.render(str(cost),False,color)
+            self.graphism.blit(text,(31,48))
+            self.image = pygame.transform.scale(self.graphism,self.size)
 
     def getCost(self):
         return self.content.getCost()
 
     def position(self,num,totaln) :
+        self.num = num
         return self.player.hand.position_x,self.game.height/2+50 - ((totaln-num) * 40-(totaln*2 *(totaln>6)))+totaln*20
         
     def takePlace(self,add=0):
@@ -295,12 +323,16 @@ class CardInHand(Sprite) :
             e=self.player.hand.index(self)
         else :
             e=len(self.player.hand)
-        phase=(self.position(e,len(self.player.hand)+add),5, self.size,None)
+        phase=(self.position(e,len(self.player.hand)+add),5, self.size)
         Animation(self,[phase]) # function de liste de liste 
         #print "ORGAANISE ",self.content.name
     
     def getInlineDescription(self):
         return self.content.getInlineDescription()
+    
+    def constructor(self): #for game
+        player = "self.player"+str([self.player.game.player1,self.player.game.player2].index(self.player)+1)
+        return "CardInHand("+self.content.constructor()+","+player+","+str(self.num)+",len(hand),"+str(self.showed)+",0)"
     
  
  

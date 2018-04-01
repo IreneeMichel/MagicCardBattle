@@ -1,5 +1,5 @@
 from math import floor
-from pygame import image
+#from pygame import image
 import pygame
 import re
 UP=re.compile('(?=[A-Z])')
@@ -17,14 +17,14 @@ import glob
 
 #import cardPowers
 from Bonus import getBonusMenu
-from Spell import getSpellMenu
+import Spell 
 
 from outils import file2name,name2file
 from outils import localopen
 
 def readMonsters(filename) :
     monsters={}
-    with open(filename,"rb") as filepickle :
+    with open(filename,"r") as filepickle :
         for m in filepickle :
             try :
                 c=evalCard(m)                
@@ -37,8 +37,8 @@ def readMonsters(filename) :
 
 def evalCard(str1) : # fonctionne sur carte comme sur liste de cartes
     import cardPowers
-    import Spell
     import Target
+    import Level
     return eval(str1)    
 
 def centerText(screen,position,text,fontSize,color,bg=None) :
@@ -94,10 +94,15 @@ class Card :
         self.monster_type = monster_type
         #global all_monsters
         name=self.name.replace(" ","_")
+        self.content=self
 #        try :
 #            self.image = image.load(os.path.join("Card",name+".png"))
 #        except :
 #            self.image=None
+    def equivalentto(self,other) :
+        return self==other
+    def show(self) :
+        pass
     def constructor(self) :
         return ('Card("'+self.name+'",'+str(self.att)+","+str(self.pv)+
             ",["+",".join([p.constructor() for p in self.bonus])+"],"+
@@ -148,7 +153,9 @@ class Card :
         return self.name +" ("+str(self.att)+"  "+str(self.pv)+' '.join(
             [b.getInlineDescription() for b in self.bonus]) +" )"
     def postAndSave(self,*args):
-        if self.name=="nom monstre" :
+        if self.name=="nom monstre" or self.name=="change name" or self.name in Card.blocked_creature :
+            self.name="change name"
+            self.refreshWidget()
             return
         if not self.verifyBonus() :
             return            
@@ -178,13 +185,18 @@ class Card :
             showinfo("Not Allowed","You can't have twice the same bonus")
             return False
         for b1,b2 in [("Insaisissable","Provocation"),("Insaisissable","Inciblable"),
-                      ("Camouflage","Provocation"),("NePeutPasAttaquer","ALaPlaceDeLAttaque"),
-                    ("GardienDeVie","QuandIlEstBlesse"),("Charge","NePeutPasRisposter"),
+                      ("Camouflage","Provocation"),("Camouflage","ChaqueTour"),("NePeutPasAttaquer","ALaPlaceDeLAttaque"),
+                    ("GardienDeVie","QuandIlEstBlesse"),("Charge","NePeutPasRisposter"),("Furie","ALaPlaceDeLAttaque"),
                     ("NePeutPasRiposter","NePeutPasAttaquer"),("NePeutPasRiposter","CoutReduit"),
-                    ("CoutReduit","NePeutPasAttaquer")] :
+                    ("Charge","CriDeGuerrre"),("Insaisissable","InsensibleALaMagie"),("Charge","Errant"),("CriDeGuerre","Errant"),
+                    ("BonusParEnnemi","Determine"),("QuandIlEstBlesse","Incassable"),("Souffrant","QuandIlEstBlesse") ] :
             if b1 in nb and b2 in nb :
                 showinfo("Not Allowed","You can't have this combination of powers: {0} and {1}".format(b1,b2))
                 return False
+        total=self.constructor()
+        if "QuandUnAllieEstTue" in nb and (("Spell.Invocation" in total) or ("CopieMain"  in total) or ("PlaceCarteDansMain" in total)):
+            showinfo("Not Allowed","You can't have anything to do with Invocation or card creation if you have QuandUnAllieEstTue")
+            return False
         return True
  
     def save(self,*args):
@@ -205,7 +217,7 @@ class Card :
         all_monsters.update(loaded_monsters)
         #print "window reinit done"
         with open(self.dumping_file,"wb") as savefile :
-            savefile.write("\n".join([m.constructor() for m in loaded_monsters.values()]))
+            savefile.write("\n".join([m.constructor() for k,m in sorted(loaded_monsters.items())]))
 #        with open(self.dumping_file+".old","rb") as filepickle :
 #            print "now in file", self.dumping_file,":",pickle.load(filepickle).keys()
 #            filepickle.close()
@@ -214,7 +226,7 @@ class Card :
         recupfile=os.path.join("CardFiles","recup_monsters.sav")
         if (not os.path.isfile(recupfile)) or len(all_monsters)>=len(open(recupfile,'r').readlines()):
             with open(recupfile, "wb" ) as f :
-                f.write("\n".join([m.constructor() for m in all_monsters.values()]))
+                f.write("\n".join([m.constructor() for k,m in sorted(all_monsters.items())]))
             print "SAVED in all_monsters.sav and recup_monsters.sav"
         else:
             print "WARNING : Recup monster file bigger than all monsters file"
@@ -227,7 +239,9 @@ class Card :
     def Open(self,*args) :
         print "open monster ",  self.opening.get()
         #deck_with_card =  self.deck_check(self.opening.get())
-        if True :
+        lv = max(eval(localopen("progression2","r").read()).values())
+        creature = Card.monster_list[self.opening.get()]
+        if creature.monster_type != "all" and not(creature.monster_type != "unknown" and lv<8 and creature.name in Card.blocked_creature) :
             self.card_win.pack_forget()
             fenetre=self.card_win.master
             #for i in Card.monster_list.keys() :
@@ -243,6 +257,8 @@ class Card :
                 b.parent = self.bonus
                 b.card = self
             self.initWidget(fenetre)
+        else:
+            showinfo("Sorry","You can't open this monsters because he comes from the campaign.")
          
     def clicDelete(self,*args) :
         #self.card_win.pack_forget()
@@ -254,8 +270,7 @@ class Card :
         """
         
         creature= self.delete.get()
-        from deck_creation import blocked_creature
-        if creature in blocked_creature :
+        if creature in Card.blocked_creature :
             print "not possible : creature in campaign"
             self.delete.set('delete')
             return
@@ -340,11 +355,10 @@ class Card :
         name_zone=PanedWindow(self.card_win, orient=HORIZONTAL)
         name = StringVar() 
         name.set(self.name)
-        from deck_creation import blocked_creature
         def modifName(*args) :
-            old = self.name in blocked_creature
+            old = self.name in Card.blocked_creature
             self.name=name.get()
-            if old or self.name in blocked_creature :
+            if old or self.name in Card.blocked_creature :
                 self.refreshWidget()
         name.trace("w", modifName)
         name_wid=Entry(name_zone, width=30,textvariable=name)
@@ -429,7 +443,7 @@ class Card :
         #Add bonus Option menu
         addBonus = StringVar(power_zone)
         addBonus.set("add bonus") # default value
-        if not self.pv:  addBonus_wid = getSpellMenu(power_zone, addBonus)
+        if not self.pv:  addBonus_wid = Spell.getSpellMenu(power_zone, addBonus)
         else: addBonus_wid = getBonusMenu(power_zone, addBonus) 
         addBonus.trace('w', addPower)
         if self.pv>0 or len(self.bonus)==0 :
@@ -439,8 +453,8 @@ class Card :
         
         #Create save zone
         save_zone = PanedWindow(self.card_win, orient=HORIZONTAL)
-        lv = int(localopen("progression","r").read())
-        if self.monster_type != "all" and not(lv<8 and self.name in blocked_creature) :
+        lv = max(eval(localopen("progression2","r").read()).values())
+        if self.monster_type != "all" and not(lv<8 and self.name in Card.blocked_creature) :
             save_wid = Button(save_zone, text="Save", command=self.postAndSave)
         elif self.monster_type != "all" : 
             save_wid = Button(save_zone, text="creature in campaign", command=None)
@@ -452,7 +466,7 @@ class Card :
         if Card.monster_list.keys():
             self.opening = StringVar(save_zone)
             self.opening.set("Open")
-            choice = Card.monster_list.keys()
+            choice = [na for na in Card.monster_list.keys() if na not in Card.blocked_creature]
             choice.sort()
             #print all_monsters.keys()
             open_wid = OptionMenu(save_zone, self.opening,*choice)
@@ -463,7 +477,7 @@ class Card :
         if Card.monster_list.keys():
             self.delete = StringVar(save_zone)
             self.delete.set("Delete")
-            choice = Card.monster_list.keys()
+            choice = [na for na in Card.monster_list.keys() if na not in Card.blocked_creature]
             choice.sort()
             delete_wid = OptionMenu(save_zone, self.delete,*choice)
             self.delete.trace('w', self.clicDelete)
@@ -627,13 +641,13 @@ class Card :
         pygame.display.flip()
         return screen
       
-    def init_as_invocation(self,master):
+    def init_as_invocation(self,master,spells=False):
         # monster widget in invocation widget        
         #print "monster init_as_invocation"
         self.content=StringVar()
         self.content.set(self.name)
         self.content.trace("w", self.is_changed_as_invocation)
-        l = Card.monster_list.keys()
+        l = [ m for m in Card.monster_list.keys() if (spells or all_monsters[m].pv>0) and not(m in Card.blocked_creature)]
         """
         if self.parent.name in l:
             l.remove(self.parent.name)

@@ -8,9 +8,9 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 #import shutil
 #UP=re.compile('(?=[A-Z])')
 
-#---------------------------
+#--------------------------
+#from Spell import -
 from Card import Card
-#from Spell import 
 #from cardPowers import *
 #possibleAsTarget=[Personne]
 # target
@@ -40,10 +40,11 @@ gob.getCost()
 
 from Tkinter import Tk
 
-def run():
+def run(blocked_creature=[]):
     fenetre = Tk()
     fenetre['bg']='white'
-    fenetre.title("Creation de Monstre") 
+    fenetre.title("Creation de Monstre")
+    Card.blocked_creature=blocked_creature
     monster=Card("mouton",1,1)
     monster.photofile='./photo/mouton.jpg'
     monster.initWidget(fenetre)
@@ -56,8 +57,8 @@ if __name__ == "__main__":
 #    import pickle
 #    #os.chdir('C:\\Users\enfants\Documents\MagicCardBattle')
 #    import glob
-#    
-#      
+#
+#
 #    
 #         
 #    with open( "CardFiles/all_monsters.sav", "rb") as f:

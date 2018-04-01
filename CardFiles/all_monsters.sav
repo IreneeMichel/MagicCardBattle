@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Card("Piscine",1,0,[cardPowers.PiocheCartes(6,Target.UneCibleAuChoix())],None,'greek')
 Card("Nouvelle Lune",0,0,[cardPowers.PiocheCartes(6,Target.UneCibleAuChoix())],'photo/pale_a10.jpg','shadow')
 Card("Serpent des Mers",8,9,[],'photo/Serpent_des_mers.jpg','aqua')
@@ -238,3 +239,5 @@ Card("Lingots en Or",0,5,[cardPowers.CoutDesMonstresReduit(2)],'photo/New/invest
 Card("Hybride",6,10,[cardPowers.AvecAttaque(cardPowers.Degat(1,Target.MasseEnnemi())),cardPowers.Inciblable(),cardPowers.Charge(),cardPowers.CoutReduit()],'photo/hybride.jpg','demon')
 Card("Petit troll",1,1,[cardPowers.Provocation()],'photo/Trolldelamontagne.jpg','nature')
 Card("Dragon de feu",3,7,[cardPowers.AttaqueADistance(),cardPowers.Charge()],'photo/Drag/dragon de feu.jpg','dragon')
+=======
+>>>>>>> 5ccddee2290a23e2fb57517e9dfee56d8bc03acb
