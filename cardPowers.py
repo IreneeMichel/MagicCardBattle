@@ -79,12 +79,15 @@ class AuChoix(Multiplier) :
                 text = font.render(self.spell1.spell.getDescription(),False,(0,0,0))
                 pygame.draw.rect(card1.image,(60,60,100), (20,300,338,235))
                 card1.image.blit(text,(15,400))
+                card1.image.set_alpha(255)
                 b=AnimatedCreature(origin,card1,origin.player,3)
                 b.is_invocation=True
                 b.pv=0
+                print "pv set to 0"
                 text = font.render(self.spell2.spell.getDescription(),False,(0,0,0))
                 pygame.draw.rect(card2.image,(60,60,100), (20,300,338,240))
                 card2.image.blit(text,(15,400))
+                card2.image.set_alpha(255)
                 b=AnimatedCreature(origin,card2,origin.player,4)
                 b.is_invocation=True
                 b.pv=0
@@ -235,8 +238,6 @@ class Initiative(BonusMonstre) :
     def beforeCombat(self,adv1,adv2) :
         monster=self.owner
         other=[adv1,adv2][adv1 is self.owner]
-        if adv1 is self.owner :
-            monster
         if all([(b.__class__.__name__!="Initiative") for b in other.bonus]):
             #print "before combat de Initiative"
             oldseq=FunctionType(other.combatSequence.func_code,globals(),closure=other.combatSequence.func_closure)

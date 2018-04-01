@@ -5,7 +5,7 @@ Created on Fri Dec 18 18:15:59 2015
 @author: Cyprien et Frederic MICHEL--DELETIE
 """
 import os
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+#os.chdir(os.path.dirname(os.p ath.realpath(__file__)))
 
 import pygame
 from copy import copy

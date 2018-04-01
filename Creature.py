@@ -62,9 +62,11 @@ class Creature() :
                         b.otherMonsterCreation(self)
             if len(player.army)>9 and "choix1"!=self.name and "choix2"!=self.name :
                 player.sacrify()
+            self.updateImage()
     def beginTurn(self) :
         #if isinstance(self,AnimatedCreature) : print "normal begin turn de ",self.name
         self.ready=True
+        self.updateImage()
     def getInlineDescription(self):
         return self.name +" ("+str(self.att)+"  "+str(self.pv)+' '.join(
             [b.getInlineDescription() for b in self.bonus]) +" )"
@@ -85,6 +87,7 @@ class Creature() :
         self.combatSequence(target)
         self.afterCombat(target)
         target.afterCombat(self)
+        self.updateImage()
     def afterCombat(self,adv) :
         #from Player import Player
         #if not isinstance(adv,Player) : print "aftercombat basic",self.name
@@ -257,7 +260,6 @@ class AnimatedCreature(Sprite,Creature) :
         Animation(Sprite(self,wound_img),[phase1],True)     
     def updateImage(self):
         #print "UPDATE_IMG"
-        # pas sur d avoir une card ici
         # le graphism a une taille connue, l image peut etre reduite 
         self.graphism = copy(self.card.image)
         wound=self.max_pv - self.pv
@@ -307,6 +309,13 @@ class AnimatedCreature(Sprite,Creature) :
                         self.graphism.blit(text,(pos_mod[0]+lx/2-20,pos_mod[1]+ly/2-15))
 
         self.image = pygame.transform.scale(self.graphism,self.size)
+        if self.ready or self.player!=self.game.player or self.pv==0 :
+            print "ready ",self.ready,self.name
+            self.graphism.set_alpha(255)
+        else :
+            print "gris",self.name,self.pv
+            self.graphism.set_alpha(180)
+            self.image.set_alpha(180)
               
     def addMark(self,name,pos="center",typ="external",level=1,size=0,value=0) :
         # a mark is list of an origin (string or instance), an image (or list of) (string or image), a position on card
@@ -406,8 +415,12 @@ class AnimatedCreature(Sprite,Creature) :
     def takePlace(self,add=0):
         #print "          take place de",self,self.name
         Animation(self,[(self.getPlace(add),3, self.size,None)])
-    
-            
+        
+    def endTurn(self):
+        self.graphism.set_alpha(255)         
+        Creature.endTurn(self)
+
+      
             
             
             

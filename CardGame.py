@@ -409,7 +409,11 @@ class NetGame(Game) :
         port.set(str(self.port))
         # adress_wid=Label(None, textvariable=self.cost, background='red',width=5, anchor=W)
         def modifPort(*args) :
-            self.port=port.get()
+            #print "modify port to",port.get()
+            try :
+                self.port=int(port.get())
+            except :
+                port.set("")
         port.trace("w", modifPort)
         port_wid=Entry(port_zone, width=30,textvariable=port)
         port_wid.pack()
@@ -427,7 +431,7 @@ class NetGame(Game) :
         start_button.focus()        
         fenetre.mainloop()
              # Import socket module
-        self.soc = socket.socket()                 # Reserve a port for your service.
+        self.soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)    # Reserve a port for your service.
         if self.local==self.host :
             self.soc.bind((self.host, self.port))        # Bind to the port
             print "socket listening"

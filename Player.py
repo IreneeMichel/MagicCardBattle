@@ -409,6 +409,7 @@ class Computer0(Player) :
                 print "dans le else de select attack target"
         else :
             monster.ready=False
+            monster.updateImage()
         #if isinstance(self,SimulationComputer) : # action is  instant only for simulation computer
         #    self.verifySituation()
 
