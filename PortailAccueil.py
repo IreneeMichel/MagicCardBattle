@@ -242,7 +242,7 @@ class Game():
 
         self.all_sprites_list = pygame.sprite.Group()
         self.blocked_decks= ["Nains de Omaghetar","Mauvais Reves","Necroman","Mahishasura","Guilde des Braves d'Edemas",
-                             "Horde","Demon","Vikings","Chateau","Le Lac","Pirates des Mers Maudites",
+                             "Horde","Demon","Vikings","Chateau","Le Lac","Pirates des Mers Maudites","invocationscampagne",
                              "Reveil De La Roche","Chasseurs des Plaines Neigeuses","MagiePure","Voyageurs d'Outreplans"]
 
 #        self.blocked_creature=[]
