@@ -189,7 +189,7 @@ class Card :
                     ("GardienDeVie","QuandIlEstBlesse"),("Charge","NePeutPasRisposter"),("Furie","ALaPlaceDeLAttaque"),
                     ("NePeutPasRiposter","NePeutPasAttaquer"),("NePeutPasRiposter","CoutReduit"),
                     ("Charge","CriDeGuerrre"),("Insaisissable","InsensibleALaMagie"),("Charge","Errant"),("CriDeGuerre","Errant"),
-                    ("Errant","RaleDAgonie"),
+                    ("Errant","RaleDAgonie"),("AttaqueADistance","AvecAttaque"),
                     ("BonusParEnnemi","Determine"),("QuandIlEstBlesse","Incassable"),("Souffrant","QuandIlEstBlesse") ] :
             if b1 in nb and b2 in nb :
                 showinfo("Not Allowed","You can't have this combination of powers: {0} and {1}".format(b1,b2))
