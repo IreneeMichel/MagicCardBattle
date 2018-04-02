@@ -579,8 +579,6 @@ class Computer(Computer0) :
 #        return value
     
     def getChoice(self,poss):
-        if "simu" not in self.name :
-            print poss
 #            print "avant get choice ",[(c.name , len(c.content.bonus)) for c in self.hand]
         #if self.verbose>1 : print " "*4*(2-self.nv)+"appel de getChoice for computer ",self.name
         if self.verbose<-15 : raise "bad verbose" 
@@ -628,7 +626,7 @@ class Computer(Computer0) :
             if len(poss)>1 :
                 from CardGame import SimulationGame
                 best,best_val=0,-300
-                if self.nv>0 : print " "
+                if self.nv>0 and self.verbose>0 : print " "
                 if playing_monster :
                     if len(poss[0])>3 :
                       if self.verbose>-1 : print " "*4*(2-self.nv)+"** I am ",self.name,' and I must evaluate ',len(poss),' targets for',poss[0][3].__class__.__name__,'from ',playing_monster.name,playing_monster.id
@@ -636,8 +634,8 @@ class Computer(Computer0) :
                       if self.verbose>-1 : print " "*4*(2-self.nv)+"** I am ",self.name,' and I must evaluate ',len(poss),' targets for',playing_monster.name
                 else :
                     if self.verbose>-1 : print " "*4*(2-self.nv)+"** I am ",self.name,' and I must evaluate ',len(poss), "options"
-                if self.nv>-1 and self.game.effect_list : print " "*4*(2-self.nv)+"with effect list ",[e[2] for e in self.game.effect_list if e[0]>0]
-                if self.nv>-1 : print " "*4*(2-self.nv)+"with ids ",[(m.name[:3],m.id) for m in self.army],[(m.name[:3],m.id) for m in self.adv.army]," and deads ",[(m.name[:3],m.id) for m in self.game.dead_monsters]
+                if self.verbose>2 and self.game.effect_list : print " "*4*(2-self.nv)+"with effect list ",[e[2] for e in self.game.effect_list if e[0]>0]
+                if self.verbose>2 : print " "*4*(2-self.nv)+"with ids ",[(m.name[:3],m.id) for m in self.army],[(m.name[:3],m.id) for m in self.adv.army]," and deads ",[(m.name[:3],m.id) for m in self.game.dead_monsters]
                 if self.verbose>5 : print " "*4*(2-self.nv)+"before getChoice, situation is ",
                 Sit_init=self.evaluateSituation(self,self.adv,verbose=(self.verbose>3))
                 #print " "*4*(2-self.nv)+"poss are ",[(p[1],p[2].name) for p in poss]
@@ -656,7 +654,7 @@ class Computer(Computer0) :
 #                    if "simu" not in self.name :
 #                        print "avant test ",i,[(c.name , len(c.content.bonus)) for c in self.hand]
                     if i>0 and poss[i][2].equivalentto(poss[i-1][2]) :
-                        if self.nv>-1 : print " "*4*(2-self.nv)+"skip poss ",i,poss[i][1]
+                        if self.nv>-1 and self.verbose>0 : print " "*4*(2-self.nv)+"skip poss ",i,poss[i][1]
                         continue
 #                    else :
 #                        print poss[i][2].name ,"different de ",poss[i-1][2].name
@@ -688,7 +686,7 @@ class Computer(Computer0) :
 #                                comp1.army.append(playmo)
 #                                comp1.game.objects[playmo.id]=playmo
 #                                comp1.game.effect_list.append([1,playmo.id,"die",None])
-                                print ('army is ',[(m.name[:5],m.id) for m in comp1.army ])
+                                #print ('army is ',[(m.name[:5],m.id) for m in comp1.army ])
                                 for m in simugame.dead_monsters :
                                     if m.id==playing_monster.id :
                                         playmo=m
@@ -744,7 +742,7 @@ class Computer(Computer0) :
                         best=i ; best_val=val
                         #if self.game.player is self : # ordi est en train de jouer
                         #    self.verify_value=verify_value
-                if self.verbose>-2 or (self.verbose>-2 and ("-simu" not in self.name)) : print " "*4*(2-self.nv)+"** Best is ",poss[best][1]," with val=",best_val
+                if self.verbose>-1 or (self.verbose>-2 and ("-simu" not in self.name)) : print " "*4*(2-self.nv)+"** Best is ",poss[best][1]," with val=",best_val
                 if self.nv==2 and self.mana>=self.game.turn and len(poss)>2 and poss[best][1]=="End your turn" :
                     self.mana=int(self.mana/2.1)  # on evite ici que le nv 2 renonce a jouer de peur que nv 1 invoque une betise
                     if self.verbose>1 : print "fin trop anticipee on recommence la reflexion avec mana reduit"
@@ -762,7 +760,7 @@ class Computer(Computer0) :
 #                if "simu" not in self.name :
                 return poss[best]
             else :
-                if self.verbose>-2 : print " "*4*(2-self.nv)+"**ordi ",self.name,": une seule action possible (",poss[0][1],")"
+                if self.verbose>0 : print " "*4*(2-self.nv)+"**ordi ",self.name,": une seule action possible (",poss[0][1],")"
                 return poss[0]
 #    def takeSimulatedTurn(self) :
 #        if self.verbose>0 : print "simulated turn of another ",self.name,type(self),self.__class__.__name__

@@ -114,7 +114,7 @@ class Spell :
             else :
                 return 0.2
         else :
-            return (self.getCost()>0.)
+            return (self.getCost()>0.)*1.
         
      
 class PasDEffet(Spell) :
@@ -350,8 +350,6 @@ class Multiplier(Spell) :
         spell_wid.add(spell2_wid)       
         self.widget.add(spell_wid)
         return self.widget
-    def getStars(self):
-        return self.spell1.spell.getStars()+self.spell2.spell.getStars()
     def getTarget(self,origin):
         return [origin]
 
@@ -409,7 +407,7 @@ class Invocation(SpellWithLevel) :
         return self.monster.getCost()*self.level.getCostMultiplier(self) + (self.level.getCostMultiplier(self))*0.5
     
     def getDescription(self) :
-        return self.__class__.__name__+' de ' + self.level.getDescription(self.monster.getDescription(),s=False)
+        return self.__class__.__name__+' de ' + self.level.getDescription(self.monster.name,s=False)
     
     def getInlineDescription(self) :
         #return self.__class__.__name__+' de '+ self.level.getInlineDescription(self.monster.getDescription(),s=False)
@@ -442,7 +440,7 @@ class Invocation(SpellWithLevel) :
 
 class PlaceCarteDansMain(Invocation):
     def getDescription(self) :
-        return "Place dans votre main \n"+self.level.getDescription("carte " + self.monster.getDescription(),False)
+        return "Place dans votre main \n"+self.level.getDescription("carte " + self.monster.name,False)
 
     def getInlineDescription(self) :
         return "Place dans votre main "+self.level.getInlineDescription("carte " + self.monster.getInlineDescription(),False)
@@ -577,10 +575,10 @@ class Transformation(Spell) :
     def getStars(self):
         return self.monster.getStars()+1*(self.target.getCostMultiplier(self)>1.1)
     def getCost(self):
-        return ( 2.+max(
-        self.monster.getCost()-2.5,
-        max(3.-self.monster.att/2.-self.monster.pv/2,self.monster.pv/2)+sum([(-0.4-p.interest)*p.getCost(self.monster) for p in self.monster.bonus])
-        ,1.8))*1.*max(1.,self.target.getCostMultiplier(self))
+        return ( 2.3+max(
+        self.monster.getCost()-2.4,
+        max(3.2-self.monster.att/2.-self.monster.pv/2,self.monster.pv/2)+sum([(-0.4-p.interest)*p.getCost(self.monster) for p in self.monster.bonus])
+        ,1.5))*1.*max(1.,self.target.getCostMultiplier(self))
     def getDescription(self) :
         return self.__class__.__name__+' en '+ self.monster.getDescription()+' de '+self.target.getDescription()
     def getInlineDescription(self) :

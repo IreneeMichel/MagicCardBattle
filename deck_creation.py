@@ -42,11 +42,18 @@ def getBlockedCreatures(blocked_decks) :
     for i in blocked_decks :
         df=os.path.join("Decks",i.replace(" ","_")+".dek")
         try :
-            with open(df,"r") as fil: # problem with python : I wanted to use "rb"
+            m=""
+            with open(df,"r") as fil: 
                 deck = eval(fil.read())
+                for m in deck.keys() :
+                    if "Avatar" not in m :
+                        c=all_monsters[m].getCost()
+                        if c-int(c)<0.5 and all_monsters[m].pv>0 :
+                            print "revoir ",m,all_monsters[m].monster_type
                 blocked_creature=blocked_creature+deck.keys()
-        except :
-            print "ERROR ",df," not found"
+        except Exception as e :
+            all_monsters[m].getCost()
+            print "ERROR ",df," not found",m,all_monsters[m].monster_type
     return blocked_creature 
 
 class DeckCreator():

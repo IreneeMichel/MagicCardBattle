@@ -298,15 +298,12 @@ class Game():
             AnimatedCreature([self.width/2,self.height/2],card,self.player1,triggerPlayingEffect=False)
         
         if keyword == "AgonieResonante":
-            for player in self.player1, self.player2:
-                
-                for card in player.deck+[c.content for c in player.hand]:
-                    
-                    for b in card.bonus:
-                        if b.__class__.__name__ == "RaleDAgonie":
-                            card.bonus.remove(b)
-                            b = cardPowers.AgonieResonante(b.spell)
-                            card.bonus.append(b)
+            def death(self,creature):
+                if not creature.is_invocation : creature.player.launch(creature,self.spell)
+                if not creature.is_invocation : creature.player.launch(creature,self.spell)
+            from cardPowers import RaleDAgonie
+            RaleDAgonie.death=death
+
         
         if keyword == "FroidIntenable":
             from cardPowers import Souffrant,InsensibleALaMagie,Isole
@@ -824,7 +821,7 @@ if __name__=="__main__" :
     
     game.player1=Player("Ennemi 1",game.chooseDeck("Voyageurs d'Outreplans"),game)#,2,hide=False)
     #game.player2=Player(player2_set[0],game.chooseDeck(player2_set[1]),game)
-    game.player2=Computer("Ennemi 2",game.chooseDeck("Reveil De La Roche"),game,2,hide=False,verbose=3)
+    game.player2=Computer("Ennemi 2",game.chooseDeck("Reveil De La Roche"),game,2,hide=False,verbose=5)
     #game.player2=HostedPlayer(game)
     
     game.initialize(common_start=False)

@@ -61,7 +61,7 @@ class ParCarteEnMain(RelativeLevel):
         return len(origin.player.hand)*self.level
     
     def getCostMultiplier(self,spell):
-        return 4*self.level
+        return 5.*self.level
 
 class ParCarteEnMainAdverse(RelativeLevel):
     extension = " par carte dans la main adverse"
@@ -80,7 +80,7 @@ class ParEnnemi(RelativeLevel):
         return len(origin.player.adv.army)*self.level
     
     def getCostMultiplier(self,spell):
-        return 3.5*self.level
+        return 4.*self.level
 
 class ParAllie(RelativeLevel):
     extension = " par allie"
@@ -89,7 +89,7 @@ class ParAllie(RelativeLevel):
         return len(origin.player.army)*self.level
     
     def getCostMultiplier(self,spell):
-        return 4.5*self.level
+        return 4.6*self.level
 
 class ParChargeEnnemi(RelativeLevel):
     extension = " par pouvoir Charge dans le deck adverse"
@@ -105,7 +105,10 @@ class ParChargeEnnemi(RelativeLevel):
     
     
     def getCostMultiplier(self,spell):
-        return 3.5*self.level
+        if spell.getValue()>0. :    
+            return 4.5*self.level
+        else :
+            return 18.*self.level
 
         
 level_dir = dir()

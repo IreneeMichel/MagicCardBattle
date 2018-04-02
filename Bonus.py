@@ -263,9 +263,10 @@ class PlainteMaudite(Trigger) :
                     if self.spell.getCost()+3*self.spell.getStars()<5:
                         self.spell.level.level+=1
                 else :
-                    self.spell.level2.level-=1
-                    if self.spell.getCost()+3*self.spell.getStars()<5:
-                        self.spell.level2.level+=1                    
+                    if hasattr(self.spell,"level2") :
+                        self.spell.level2.level-=1
+                        if self.spell.getCost()+3*self.spell.getStars()<5:
+                            self.spell.level2.level+=1                    
             return -2
         elif self.spell.getCost()+3*self.spell.getStars()>=2:
             return -1
@@ -276,7 +277,11 @@ class PlainteMaudite(Trigger) :
         if self.spell.willAct(creature):
             creature.player.launch(creature,self.spell)
         else:
+            creature.is_dead=True # pour annuler rale d agonie
             creature.die()
+            for b in creature.bonus : # il faut quand meme enlever les bonus
+                    #print "removed ",b
+                    b.removed()
         if self in creature.bonus :
             creature.bonus.remove(self) # ameliore l evaluation par l ordi de la valeur de la creature
         creature.starcost -= self.getStars()
@@ -302,7 +307,7 @@ def getNegativeSpellMenu(master,variable) :
     from Tkinter import OptionMenu
     #print dir(cardPowers)
        
-    list_spells = ['Assassinat','Degat','Bonus','BouclierDivin','ChangementDeCamp','Guerison',
+    list_spells = ['Assassinat','Degat','Bonus','BouclierDivin','ChangementDeCamp','Guerison','DegatSurSonHeros',
     'GuerisonTotale','ReduitUnServiteurA1Vie','ReduitUnServiteurA1Att','Sarcophage',"DefausserSoi"]
     
     
