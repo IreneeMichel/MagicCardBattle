@@ -5,7 +5,7 @@ Created on Mon Sep 04 20:13:39 2017
 @author: test
 """
 
-from Tkinter import OptionMenu
+from tkinter import OptionMenu
 #import random
 
 class Level():
@@ -55,16 +55,26 @@ class RelativeLevel(Level):
 
 
 class ParCarteEnMain(RelativeLevel):
-    extension = " par carte en main"
+    extension = " par cartes en main"
     
     def getLevel(self,origin):
+        print(" par cartes en main",len(origin.player.hand),"*",self.level)
         return len(origin.player.hand)*self.level
     
     def getCostMultiplier(self,spell):
         return 5.*self.level
 
+class ParAllieBlesse(RelativeLevel):
+    extension = " par allies blesses"
+    
+    def getLevel(self,origin):
+        return (len([c for c in origin.player.army if c.pv<c.max_pv])+[0,1][origin.player.pv<origin.player.max_pv])*self.level
+    
+    def getCostMultiplier(self,spell):
+        return 3.5*self.level
+
 class ParCarteEnMainAdverse(RelativeLevel):
-    extension = " par carte dans la main adverse"
+    extension = " par cartes dans la main adverse"
     
     def getLevel(self,origin):
         return len(origin.player.adv.hand)*self.level
@@ -74,7 +84,7 @@ class ParCarteEnMainAdverse(RelativeLevel):
 
 
 class ParEnnemi(RelativeLevel):
-    extension = " par ennemi"
+    extension = " par ennemis"
     
     def getLevel(self,origin):
         return len(origin.player.adv.army)*self.level
@@ -83,7 +93,7 @@ class ParEnnemi(RelativeLevel):
         return 4.*self.level
 
 class ParAllie(RelativeLevel):
-    extension = " par allie"
+    extension = " par allies"
     
     def getLevel(self,origin):
         return len(origin.player.army)*self.level
@@ -92,20 +102,25 @@ class ParAllie(RelativeLevel):
         return 4.6*self.level
 
 class ParChargeEnnemi(RelativeLevel):
-    extension = " par pouvoir Charge dans le deck adverse"
+    extension = " par pouvoirs Charge dans le deck adverse"
     
     def getLevel(self,origin):
         l=[]
         for c in origin.player.adv.deck:
-            try:
-                l.append(c.pv > 0 and any([ bon.__class__.__name__ == "Charge" for bon in c.bonus]))
-            except:
-                print c.name,c,"doesn't have bonus",c.pv
-        return l.count(True)*self.level
+            if c.name!="NotPlayableCard" :
+                try:
+                    l.append(1.*(c.pv > 0 and any([ bon.__class__.__name__ == "Charge" for bon in c.bonus])))
+                except:
+                    print (c.name,c,"doesn't have bonus",c.pv)
+            else :
+                l.append(0.5)
+        print(" par charge",l,"=",sum(l),'*',self.level)
+        return int(sum(l)*self.level)
     
     
-    def getCostMultiplier(self,spell):
-        if spell.getValue()>0. :    
+    def getCostMultiplier(self,power):
+        #print "ParChargeEnnemi  getCostMultiplier",spell.getValue()
+        if power.getValue()>0. :    
             return 4.5*self.level
         else :
             return 18.*self.level

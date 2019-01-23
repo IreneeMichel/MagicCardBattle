@@ -28,8 +28,7 @@ GREEN = (0,200,20)
 BLACK = (0,0,0)
 RED =(255,0,0)
 
-
-import tkMessageBox
+#import tkMessageBox
 
 img_campaign_button = pygame.image.load("gameAnimationImages/PlayCampaignButton.png")
 img_cardedit_button = pygame.image.load("gameAnimationImages/CardEditorButton.png")
@@ -39,8 +38,8 @@ img_battle_button = pygame.image.load("gameAnimationImages/PlayBattleButton.png"
 img_blank_button = pygame.image.load("gameAnimationImages/BlankButton.png")
 
 if len(glob.glob("Cards/*.png"))<10 :
-    print " Cards not found "
-    execfile('./TouchMonsterFiles.py')
+    print (" Cards not found ")
+    exec(open('./TouchMonsterFiles.py').read())
 
 all_cards = {}
 from Card import readMonsters
@@ -49,7 +48,15 @@ for fn in glob.glob("CardFiles/all*.sav") :
     d = readMonsters(fn)
     all_cards.update(d)
 
-
+#try:
+#        pygame.mixer.init()
+#        SOUND = True
+#except:
+#        SOUND = False
+    
+#if SOUND:    
+#    pygame.mixer.music.load("Fantasy Celtic Music - Spirit of the Wild.mp3")
+#    pygame.mixer.music.play(-1)
 
 def is_around(i,ii,length):
     if ii < i -length or ii > i +length:
@@ -61,9 +68,9 @@ class Level():
     def __init__(self):
         self.options = ()
     def show(self):
-        print "Opponent: ",self.opponent.name
-        print "scenario ",self.scenario
-        print "Difficulty: ", self.difficulty
+        print ("Opponent: ",self.opponent.name)
+        print ("scenario ",self.scenario)
+        print ("Difficulty: ", self.difficulty)
 
     def makeImage(self,add=None):
         image = pygame.Surface((900,600))
@@ -76,7 +83,7 @@ class Level():
         text2 = font.render("Opponent: "+self.opponent.name,False,(3,0,0))
         image.blit(text,(100,80))
         image.blit(text2,(100,120))
-        font = pygame.font.SysFont("latobolditalic",14)
+        font = pygame.font.SysFont("latobolditalic",20)
         scenario = self.scenario
         text3="" ; text=[]
         for let in scenario :
@@ -151,7 +158,7 @@ class InteractiveButton(Button):
                     self.image = copy(self.graphism)
                     self.image.blit(image,[0,0])
                     self.aura = True
-                    print "activate aura"
+                    print ("activate aura")
                     
                     
         else:
@@ -172,17 +179,18 @@ class DeckButton(Button):
           with open(name2file("Decks",deck_name,".dek"),"r") as fil:
             deck = eval(fil.read())
             del deck["AvatarImage"]
-            print deck_name
+            print (deck_name)
             for k in deck.keys() :
                 try :
                     all_cards[k].getCost()
                 except Exception as e:
-                    print "error getCost with",k," in deck ",deck_name
+                    print ("error getCost with",k," in deck ",deck_name)
+                    print(sorted(all_cards.keys()))
                     raise e
             try :
                 stars = sum([all_cards[k[0]].getStars()*k[1] for k in deck.items()] )
             except :
-                print " in ",all_cards.keys(), " looking for ",deck.keys()
+                print (" in ",all_cards.keys(), " looking for ",deck.keys())
                 raise
             if stars>15 and len(argus)!=2:
                 self.accessible = False
@@ -227,7 +235,7 @@ class Profile():
         self.level = level
 
 class Viewer(pygame.sprite.Sprite):
-    def __init__(self,image,(x,y)):
+    def __init__(self,image,x,y):
         pygame.sprite.Sprite.__init__(self)
         self.image = image
         self.rect = self.image.get_rect()
@@ -478,24 +486,26 @@ class Game():
         self.progression = eval(open(self.prog_file_name,"r").read())
         if deck not in self.progression.keys():
             self.progression[deck]=(0,0,None)
+        print("debug",copy,self.progression)
         oldmonstervalues=copy(self.progression[deck][2])
         # verification du deck
         if oldmonstervalues :
             newvalues=[int(m.getCost()*1000) for m in CardGame.Game().chooseDeck(deck)]
-            print sorted(oldmonstervalues)
-            print sorted(newvalues)
+            print (sorted(oldmonstervalues))
+            print (sorted(newvalues))
             differences=0
             for m in CardGame.Game().chooseDeck(deck) :
                 v=int(m.getCost()*1000)
                 if v in oldmonstervalues :
                     oldmonstervalues.remove(v)
                 else :
-                    print m.name,int(m.getCost()*1000)," modifie ou non present precedemment"
+                    print (m.name,int(m.getCost()*1000)," modifie ou non present precedemment")
                     differences+=1
-            print "il reste ",oldmonstervalues
+            print ("il reste ",oldmonstervalues)
             if max(len(oldmonstervalues),differences)>2 :
-                result = tkMessageBox.askyesno("Le deck a trop changé","Voulez vous repartir a zero ?")
-                print result
+                import tkinter
+                result = tkinter.messagebox.askyesno("Le deck a trop changé","Voulez vous repartir a zero ?")
+                print (result)
                 if result==True :
                     self.progression[deck]=[0,0,None]
                 else:
@@ -505,7 +515,7 @@ class Game():
                     self.initialize()
                     return
         level=self.progression[deck][0]
-        print "Level are done until level: ",level
+        print ( "Level are done until level: ",level)
         self.unlocked_levels = self.all_levels[:level+1]
         
         self.bg_color = (240,255,245)
@@ -535,11 +545,11 @@ class Game():
                 if d in self.blocked_decks:
                     playable_decks.remove(d)
             list_ = playable_decks
-            print "limited choice ",
+            print ("limited choice ",)
         else:
             list_ =  all_decks
         l = len(list_)
-        print "list_",list_
+        print ("list_",list_)
         if n==2 : l+=1
         for x,i in enumerate(list_):
             angle = (x+1)*360/l
@@ -618,9 +628,9 @@ class Game():
         self.initialize()
 
     def deckCreation(self):
-        from Tkinter import Tk
+        from tkinter import Tk
         fenetre = Tk()
-        fenetre.title('Clic to add a monster to deck')
+        fenetre.title('Clic to add a monster to deck _ close this windows to end deck creation')
         from deck_creation import DeckCreator
         a=DeckCreator(fenetre,self.blocked_decks)
         fenetre.mainloop()
@@ -634,7 +644,7 @@ class Game():
 #                playable_decks.remove(d)
 
     def displayMatch(self,level,num,locked,deck):
-        print "Match number {0} selected".format(num)
+        print ("Match number {0} selected".format(num))
         if self.viewer:
             self.viewer.kill()
         if self.lastChance :
@@ -650,7 +660,7 @@ class Game():
             level.show()
 
             achievement,trynumber,oldmonstervalues = self.progression[deck]
-            self.viewer = Viewer(level.makeImage(),(100,20))
+            self.viewer = Viewer(level.makeImage(),100,20)
             self.all_sprites_list.add(self.viewer)
             if self.all_levels.index(level)==achievement and trynumber==2 and achievement>0 :
                 font = pygame.font.SysFont("latobolditalic",24)
@@ -659,17 +669,17 @@ class Game():
                 image.fill((205,205,205))
                 #image.blit(text,(100,190+6*25))
                 image.blit(text,(30,10))
-                self.lastChance = Viewer(image,(200,350))
+                self.lastChance = Viewer(image,200,350)
                 self.all_sprites_list.add(self.lastChance)
-            self.achievmentImage = Viewer(pygame.transform.scale(pygame.image.load(["gameAnimationImages/AchievmentEmpty.png","gameAnimationImages/AchievmentDone.png"][self.progression[deck][0]>num]),(100,100)),(750,650))
+            self.achievmentImage = Viewer(pygame.transform.scale(pygame.image.load(["gameAnimationImages/AchievmentEmpty.png","gameAnimationImages/AchievmentDone.png"][self.progression[deck][0]>num]),(100,100)),750,650)
             self.all_sprites_list.add(self.achievmentImage)
 
         else:
-            print "Level Locked"
+            print( "Level Locked")
             if self.play_button:
                 self.play_button.kill()
             self.achievmentImage = None
-            self.viewer = Viewer(level.lockedImage(),(100,20))
+            self.viewer = Viewer(level.lockedImage(),100,20)
             self.all_sprites_list.add(self.viewer)
 
     def selectMatch(self,level,num,deck):
@@ -680,7 +690,7 @@ class Game():
 
     def playLevel(self,deck):
         level = self.level_selected
-        print "*** Match number {0} played".format(self.num)," by ",deck
+        print ("*** Match number {0} played".format(self.num)," by ",deck)
         achievement,trynumber,oldmonstervalues = self.progression[deck]
         if self.all_levels.index(level)==achievement :
             if trynumber==2 and achievement>0 :
@@ -700,13 +710,13 @@ class Game():
             gam.player1.avatar_img=pygame.image.load("Avatars/Chevalier_noir#.png")
         gam.player2.avatar_img=pygame.image.load("Avatars/"+level.avatar)
         gam.initialize()
-        print level.options
+        print (level.options)
         for opt in level.options:
             gam.activateOption(opt)
         gam.play()
         winner = gam.get_winner() # player name or None if quit manually
         if winner == "Player" and self.all_levels.index(level)==achievement:
-            print "progression advanced"
+            print ("progression advanced")
             self.progression[deck]=(achievement+1,0,[int(m.getCost()*1000) for m in gam.chooseDeck(deck,1)])
             open(self.prog_file_name,"w").write(str(self.progression))
             #self.unlocked_levels = self.all_levels[:self.level_prog]
@@ -716,7 +726,7 @@ class Game():
         self.initialize()
 
     def playBattle(self,deck1,deck2):
-        print "Arena Battle between {0} and {1}".format(deck1,deck2)
+        print( "Arena Battle between {0} and {1}".format(deck1,deck2))
         gam = CardGame.Game()
         self.runninggame = gam
         gam.player1=Player.Player("Player",gam.chooseDeck(deck1,1),gam)#,2,verbose=0,hide=False)
@@ -734,7 +744,7 @@ class Game():
         self.initialize()
 
     def startNetGame(self,deck_name) :
-        print "play net game with deck",deck_name
+        print( "play net game with deck",deck_name)
         from CardGame import NetGame
         from Player import Player,HostedPlayer
         game = NetGame()
@@ -753,7 +763,7 @@ if __name__=='__main__':
     size = (900, 900)
     screen = pygame.display.set_mode(size)
     
-    game = Game()
+    game = Game()   # game.gam ou game.runninggame is the Card Game
     
     clock = pygame.time.Clock()
     

@@ -1,15 +1,17 @@
 from Spell import Spell,PasDEffet,getSpellMenu
-from Tkinter import *
+from tkinter import *
 import re
+import Level
 UP=re.compile('(?=[A-Z])')
 
 class BonusMonstre :
     isTrigger=False
     hasTarget=False
+    is_cost_alterator = False
     def __init__(self) :
         self.parent=None
     def constructor(self) :
-        return "cardPowers."+self.__class__.__name__+"()"
+        return "CardPowers."+self.__class__.__name__+"()"
     def afterInvocation(self,creature) :
         pass
     def whenPlayed(self,creature) :
@@ -24,6 +26,8 @@ class BonusMonstre :
         pass
     def afterCombat(self,me,other) :  
         pass
+    def modifyOwnManaCost(self,cardinhand,cost):
+        return cost
     def modifyTakenDamage(self,damage) : 
         return damage
     #def damage(self,creature,damage) :   # effect of bonus if damage taken
@@ -59,22 +63,22 @@ class BonusMonstre :
     def getInlineDescription(self):
         return re.sub(UP,' ',self.__class__.__name__)
     def isChanged(self,*args) :
-        print "bonus or trigger change"
+        print ("bonus or trigger change")
         choice=self.content.get()
-        exec('from cardPowers import '+ choice)
+        exec('from CardPowers import '+ choice)
         new=eval(choice+'()')
         new.parent=self.parent
         new.card=self.card
         if self.parent :
             #parent.spell=new
             if type(self.parent)==type([]) :
-                print "BonusMonstre changed in list"
+                print ("BonusMonstre changed in list")
                 self.parent[self.parent.index(self)]=new
             else :
-                print "BonusMonstre changed in widget"
+                print ("BonusMonstre changed in widget")
                 self.parent.spell=new
         else :
-            print "BonusMonstre with no parent ?"
+            print ("BonusMonstre with no parent ?")
         self.card.refreshWidget()
     def initWidget(self,master) :
         self.content=StringVar()
@@ -99,11 +103,11 @@ class BonusMonstreWithLevel(BonusMonstre) :
         self.level = level
         self.parent=None
     def constructor(self) :
-        return "cardPowers."+self.__class__.__name__+"("+str(self.level)+")"
+        return "CardPowers."+self.__class__.__name__+"("+str(self.level)+")"
     def getDescription(self) :
         return  re.sub(UP,' ',self.__class__.__name__)+' '+ str(self.level)
     def modifyLevel(self,*args) :
-        print "modified level",self.level
+        print ("modified level",self.level)
         self.level=int(self.level_wid.get())
         self.card.getCost()
     def initWidget(self,master) :
@@ -131,15 +135,15 @@ class BonusMonstreWithTwoLevels(BonusMonstre):
         self.level2 = level2
         self.parent=None
     def constructor(self) :
-        return "cardPowers."+self.__class__.__name__+"("+str(self.level)+","+str(self.level2)+")"
+        return "CardPowers."+self.__class__.__name__+"("+str(self.level)+","+str(self.level2)+")"
     def getDescription(self) :
         return  re.sub(UP,' ',self.__class__.__name__)+' '+ str(self.level)
     def modifyLevel(self,*args) :
-        print "modified level",self.level
+        print ("modified level",self.level)
         self.level=int(self.level_wid.get())
         self.card.getCost()
     def modifyLevel2(self,*args) :
-        print "modified level",self.level
+        print ("modified level",self.level)
         self.level2=int(self.level_wid2.get())
         self.card.getCost()
     def initWidget(self,master) :
@@ -176,7 +180,7 @@ class BonusMonstreGivingBonus(BonusMonstre) :
         self.restriction=""
         self.interest=self.spell.interest
     def constructor(self) :
-        return "cardPowers."+self.__class__.__name__+"("+self.spell.constructor()+")"
+        return "CardPowers."+self.__class__.__name__+"("+self.spell.constructor()+")"
     def getDescription(self):
         return re.sub(UP,' ',self.__class__.__name__)+' :\n'+self.spell.getDescription()
     def restrictionChanged(self,*args) :
@@ -212,7 +216,7 @@ class Trigger(BonusMonstre) :
         self.parent=None
         self.interest=self.spell.getValue() # init est rappele quand la carte ou creature est cree
     def constructor(self) :
-        return "cardPowers."+self.__class__.__name__+"("+self.spell.constructor()+")"
+        return "CardPowers."+self.__class__.__name__+"("+self.spell.constructor()+")"
     def getDescription(self) :
         return re.sub(UP,' ',self.__class__.__name__)+' :\n'+self.spell.getDescription()
     def getInlineDescription(self) :
@@ -236,19 +240,25 @@ class Trigger(BonusMonstre) :
 
 
 def getBonusMenu(master,variable) :
-    import cardPowers
-    #print dir(cardPowers)
-    class_content=[p for p in dir(cardPowers) if  hasattr(getattr(cardPowers,p),'getCost') and ('Effect' not in p)]
-    list_bonus=[p for p in class_content if issubclass(getattr(cardPowers,p),BonusMonstre)
-       and not getattr(cardPowers,p).isTrigger ]
+    import CardPowers
+    #print dir(CardPowers)
+    class_content=[p for p in dir(CardPowers) if  hasattr(getattr(CardPowers,p),'getCost') and ('Effect' not in p)]
+    list_bonus=[p for p in class_content if issubclass(getattr(CardPowers,p),BonusMonstre)
+       and not getattr(CardPowers,p).isTrigger ]
     nbPossibleBonus=len(list_bonus)
-    list_bonus+=[p for p in class_content if issubclass(getattr(cardPowers,p),BonusMonstre)
-       and getattr(cardPowers,p).isTrigger ] # liste comme texte pour menus
+    list_bonus+=[p for p in class_content if issubclass(getattr(CardPowers,p),BonusMonstre)
+       and getattr(CardPowers,p).isTrigger ] # liste comme texte pour menus
     #print list_bonus
     bm = OptionMenu(master,variable,*list_bonus)
     bm["menu"].insert_separator(nbPossibleBonus)
     return bm
 
+def getCostAlteratorMenu(master,variable) :
+    import CardPowers
+    #print dir(CardPowers)
+    class_content=[p for p in dir(CardPowers) if  hasattr(getattr(CardPowers,p),'getCost') and ('Effect' not in p) and eval("CardPowers."+p).is_cost_alterator]
+    bm = OptionMenu(master,variable,*class_content)
+    return bm
 
 class PlainteMaudite(Trigger) :
     def getCost(self,monster) :
@@ -301,11 +311,10 @@ class PlainteMaudite(Trigger) :
         spell_wid=self.spell.initWidget(self.widget,get_spell_menu =  getNegativeSpellMenu, negative_target = True)
         self.widget.add(spell_wid)
         return self.widget
-    
 
 def getNegativeSpellMenu(master,variable) :
-    from Tkinter import OptionMenu
-    #print dir(cardPowers)
+    from tkinter import OptionMenu
+    #print dir(CardPowers)
        
     list_spells = ['Assassinat','Degat','Bonus','BouclierDivin','ChangementDeCamp','Guerison','DegatSurSonHeros',
     'GuerisonTotale','ReduitUnServiteurA1Vie','ReduitUnServiteurA1Att','Sarcophage',"DefausserSoi"]
@@ -313,3 +322,94 @@ def getNegativeSpellMenu(master,variable) :
     
     bm = OptionMenu(master,variable,*list_spells)
     return bm
+
+  
+    
+class CoutReduit(BonusMonstre) :
+    interest=0    
+    is_cost_alterator = True
+    def getCost(self,monster) :
+        if monster.pv > 0:
+            co=[m.getCost(monster)+(m.getStars()>0)*1.2 for m in monster.bonus if not m.is_cost_alterator]
+            co=co+[monster.att*0.5,monster.pv*0.5]
+            co.sort(reverse=True)
+            co=[c*(0.16+i*0.05) for i,c in enumerate(co) if c>0]
+        else:
+            co = [0.15 * sum([b.getCost() for b in monster.bonus if not b.is_cost_alterator])]
+        return -sum(co)-0.3
+
+    def initWidget(self,master) :
+        self.content=StringVar()
+        self.content.set(self.__class__.__name__)
+        self.content.trace("w", self.isChanged)
+        self.widget=getCostAlteratorMenu(master,self.content)
+        #name_wid.pack()
+        return self.widget
+
+    def getStars(self):
+        return 1
+    def getDescription(self):
+        return "cout reduit"
+    def whenPlayed(self,monster) :    # ameliore l evaluation par l ordi de la valeur de la creature
+        monster.bonus.remove(self)
+        monster.starcost-=1  
+
+class CoutReduitParSituation(CoutReduit, BonusMonstreWithLevel) :
+    interest=0    
+    is_cost_alterator = True
+    def __init__(self,level=Level.NbFixe(1)) :
+        self.level = level
+        self.parent=None
+    def getValue(self):
+        return 1
+    def getCost(self,monster) :
+        return self.level.getCostMultiplier(self)
+    def modifyOwnManaCost(self,cardinhand,cost):
+        return cost - self.level.getLevel(cardinhand)
+    def getStars(self):
+        return 0
+
+    def constructor(self) :
+        #print "level is ",self.level
+        return "CardPowers."+self.__class__.__name__+"("+self.level.constructor()+")"
+
+    def getDescription(self) :
+        return "Cout Reduit de "+self.level.getDescription("",s=False)
+        
+    def modifyLevelType(self,*args) :
+        print ("modified level type",self.level.__class__.__name__)
+        self.level=eval("Level."+self.add_level.get())()
+        self.card.getCost()
+        self.card.refreshWidget()
+    
+    def modifyLevel(self):
+         print ("modified level to ",self.value.get())
+         self.level.modifyLevel(self.value.get())
+         self.card.getCost()
+         self.card.refreshWidget()
+            
+    def initWidget(self,master) :
+        self.widget=PanedWindow(master,orient=HORIZONTAL)
+        self.content=StringVar()
+        self.content.set(self.__class__.__name__)
+        self.content.trace("w", self.isChanged)
+        
+        name_wid=getCostAlteratorMenu(master,self.content)
+        
+        #name_wid.pack()
+        self.widget.add(name_wid)
+        
+        self.add_level=StringVar()
+        self.add_level.set(self.level.__class__.__name__)
+        self.level_wid=Level.getLevelMenu(self.widget, self.add_level)
+        self.add_level.trace('w', self.modifyLevelType)
+        self.widget.add(self.level_wid)
+        
+        self.value=StringVar()
+        self.value.set(str(self.level.level))
+        value_wid=Spinbox(self.widget, from_=1, to=1000,textvariable=self.value,
+            command=self.modifyLevel )
+        value_wid.icursor(5)
+        self.widget.add(value_wid)
+        
+        return self.widget

@@ -1,16 +1,17 @@
-from Tkinter import *
+from tkinter import *
 #import pickle
 import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
-from tkMessageBox import showinfo
+from tkinter.messagebox import showinfo
 
 from functools import partial
 import glob
 #import Card
-
+import re
 from outils import file2name
-
+from PIL import Image
+from PIL.ImageTk import PhotoImage
 #os.chdir('C:\Users\test\Documents\Programmation\MCB2')
 
 from Card import readMonsters,all_monsters
@@ -35,7 +36,7 @@ from Card import readMonsters,all_monsters
 #all_cards = pickle.load( open( "all_monsters.sav", "rb" ))
 #all_decks=pickle.load( open( "all_decks.sav", "rb" ))
 
-from PIL import Image, ImageTk
+
 
 def getBlockedCreatures(blocked_decks) :
     blocked_creature=[]
@@ -49,11 +50,15 @@ def getBlockedCreatures(blocked_decks) :
                     if "Avatar" not in m :
                         c=all_monsters[m].getCost()
                         if c-int(c)<0.5 and all_monsters[m].pv>0 :
-                            print "revoir ",m,all_monsters[m].monster_type
+                            print( "revoir ",m,all_monsters[m].monster_type)
                 blocked_creature=blocked_creature+deck.keys()
         except Exception as e :
-            all_monsters[m].getCost()
-            print "ERROR ",df," not found",m,all_monsters[m].monster_type
+            print( "in",i,"pb with",m)
+            try :
+                all_monsters[m].getCost()
+                print( "ERROR ",df," not found",m,all_monsters[m].monster_type)
+            except Exception as e :
+                print( e)
     return blocked_creature 
 
 class DeckCreator():
@@ -62,14 +67,17 @@ class DeckCreator():
         self.blocked_creature=getBlockedCreatures(self.blocked_decks)
         self.galeries = []
         from Card import readMonsters
-        self.all_cards_open = readMonsters("CardFiles/unknown_monsters.sav")
+        self.all_cards_open = readMonsters("CardFiles/human_monsters.sav")
         self.refreshCardSelector(fenetre)
         
         self.deck={}
         self.ima=[]
         self.fenetre1=Toplevel(master=fenetre)
         self.fenetre1.title("Clic to remove a card from deck")
-        self.deck_widg=PanedWindow(master=self.fenetre1, orient=VERTICAL)
+
+
+        #self.listbox = Listbox(master, yscrollcommand=scrollbar.set)
+        self.deck_widg=Canvas(master=self.fenetre1)
         
         self.name = StringVar()
         self.firstline=PanedWindow(master=self.fenetre1, orient=HORIZONTAL)
@@ -87,56 +95,77 @@ class DeckCreator():
     def refreshCardSelector(self,fenetre):
         self.fenetre = fenetre
         self.im=[]
-        nb_Carte_p_ligne=-1
+        nb_Carte_p_ligne=0
         self.ligne=1
-        #galerie2=None
-        galerie1=PanedWindow(fenetre, orient=HORIZONTAL)
-        self.stars=[]
-        print self.all_cards_open
-        for a in self.all_cards_open.keys() :
+        self.frame = Frame(fenetre)        
+        vscrollbar = Scrollbar(self.frame, orient=VERTICAL)
+        vscrollbar.pack(fill=Y, side=RIGHT, expand=FALSE)
+        canvas = Canvas(self.frame, bd=0, highlightthickness=0,
+                        yscrollcommand=vscrollbar.set)
+        canvas.pack(side=LEFT, fill=BOTH, expand=TRUE)
+        vscrollbar.config(command=canvas.yview)
+
+        # reset the view
+        canvas.xview_moveto(0)
+        canvas.yview_moveto(0)
+
+        # create a frame inside the canvas which will be scrolled with it
+        self.interior = interior = Frame(canvas)
+        interior_id = canvas.create_window(0, 0, window=interior,
+                                           anchor=NW)
+
+        # track changes to the canvas and frame width and sync them,
+        # also updating the scrollbar
+        def _configure_interior(event):
+            # update the scrollbars to match the size of the inner frame
+            size = (interior.winfo_reqwidth(), interior.winfo_reqheight())
+            canvas.config(scrollregion="0 0 %s %s" % size)
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the canvas's width to fit the inner frame
+                canvas.config(width=interior.winfo_reqwidth(),height=180*4)
+        interior.bind('<Configure>', _configure_interior)
+
+        def _configure_canvas(event):
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the inner frame's width to fill the canvas
+                canvas.itemconfigure(interior_id, width=canvas.winfo_width(),height=180*4)
+        canvas.bind('<Configure>', _configure_canvas)
+        
+        self.frame.pack()
+        galerie1=PanedWindow(self.interior, orient=HORIZONTAL)
+        #self.stars=[]
+        #print( self.all_cards_open)
+        lisk=list(self.all_cards_open.keys())
+        for a in lisk :
             if a in self.blocked_creature :
                 continue
-            nb_Carte_p_ligne+=1
-            if nb_Carte_p_ligne>10:
-                nb_Carte_p_ligne=0
-             #   a='galerie'                                           
-              #  self.ligne+=1
-                self.galeries.append(galerie1)
-                galerie1=PanedWindow(fenetre, orient=HORIZONTAL)
-            self.stars.append(a)
-            self.all_cards_open[a].getCost()
-            self.stars.append(self.all_cards_open[a].getStars())
+            #self.stars.append(a)
+            #self.all_cards_open[a].getCost()
+            #♦self.stars.append(self.all_cards_open[a].getStars())
             self.filename=a.replace(" ","_")+'.png'
-            print self.filename
+            print( self.filename)
             try :
-               image = Image.open("Cards/"+self.filename).resize((120,180))
-               print image,"   ", type(image)==type(Image.open("Cards/"+self.filename))
-               p  = ImageTk.PhotoImage(image)
-               #print p
+               image = Image.open("Cards/"+self.filename).resize((120,180), Image.ANTIALIAS)
+               p  = PhotoImage(image,master=galerie1)
                self.im.append(p)
             except :
-               print "pb avec image ","Cards/"+self.filename
-            #print a
-            galerie1.pack()
-           # galerie_utilisee='galerie'+self.ligne
-           # if self.ligne==1:
-            #print 'galerie'+str(self.ligne)
-            #'galerie'+str(self.ligne).add(Button(str(a+self.ligne,  command=partial(self.addCard,a),image =p)))
-            galerie1.add(Button(galerie1,  command=partial(self.addCard,a),image =p))
-            #if self.ligne==2:              
-              # if not galerie2:
-               #    galerie2=PanedWindow(fenetre, orient=HORIZONTAL)
-           #    galerie2.add(Button(galerie2,command=partial(self.addCard,a),image =p))
-        #galerie2.pack()
-        #str(a+self.ligne).pack()
-        print "stars :",self.stars
-        self.galerie1 = galerie1
-        self.galeries.append(galerie1)
+                print( "pb avec image ","Cards/"+self.filename)
+                print( "in deck ",self.all_cards_open[a].monster_type)
+                print("Card must be redefined")
+                continue
+            b=Button(galerie1,  command=partial(self.addCard,a))
+            b.configure(image =p,width=120,height=180)
+            galerie1.add(b)
+            nb_Carte_p_ligne+=1
+            if nb_Carte_p_ligne>9 or a==lisk[-1]:
+                nb_Carte_p_ligne=0
+                #b.pack()
+                self.galeries.append(galerie1)
+                galerie1.pack()
+                galerie1=PanedWindow(self.interior, orient=HORIZONTAL)     
         
-        #self.canvas = Canvas(fenetre1, width=189, height=277)
-        galerie1.pack()
     def addCard(self,card_name) :
-        print "addCard",card_name
+        print( "addCard",card_name)
         # print self.deck
         if card_name not in self.deck: 
             self.deck[card_name]=1
@@ -144,7 +173,7 @@ class DeckCreator():
             self.deck[card_name]+=1
         self.showDeck()
     def removeCard(self,card_name) :
-        print "removeCard",card_name
+        print( "removeCard",card_name)
         self.deck[card_name]-=1
         if self.deck[card_name]<1:
             del self.deck[card_name]
@@ -154,24 +183,22 @@ class DeckCreator():
                 showinfo("Careful...","Your deck have too much stars to be used in the Campaign (limit is 15)")
         name=self.name.get().strip().replace(" ","_")+".dek"
         import os
-        lv = max(eval(open("progression2","r").read()).values())
+        #lv = max(eval(open("progression2","r").read()).values())
         if os.path.basename(self.name.get()) in self.blocked_decks :
-            print "deck protege pour la campagne"
+            print( "deck protege pour la campagne")
             return
-        else :
-            print self.name.get(),self.blocked_decks
         if not name.startswith("Decks"):
-                print "deck put in Decks/"
+                print( "deck put in Decks/")
                 name=os.path.join("Decks",name)
-        print "save in",name
+        print( "save in",name)
         import os.path
         if self.loaded and self.loaded!=os.path.basename(name) and self.loaded!=name and self.loaded.replace('\\','/')!=name.replace('\\','/') and os.path.isfile(name) or (not(self.loaded) and os.path.isfile(name)):
-                print "loaded ",self.loaded,"  cannot overwrite",name," !"
+                print( "loaded ",self.loaded,"  cannot overwrite",name," !")
                 showinfo("Impossible","You cannot overwrite an existing deck")
                 return
             #name=self.name_wid.get()
-        open( name, "wb" ).write(repr(self.deck))
-        print self.deck," saved"
+        open( name, "wb" ).write(repr(self.deck).encode('utf-8'))
+        print( self.deck," saved")
         self.deck={} ; self.name.set("") ; self.loaded=None
         self.showDeck()        
 #    def openDeck(self) :
@@ -185,11 +212,11 @@ class DeckCreator():
         name = self.opening.get()
         if (file2name(name) in self.blocked_decks) or " (not available)" in name:
             lv = max(eval(open("progression2","r").read()).values())
-            print "La campagne est au niveau ",lv," /8"
+            print( "La campagne est au niveau ",lv," /8")
             if lv >= 8:
                 self.loadDeck(name)
             else:
-                print "Deck is not accessible"
+                print( "Deck is not accessible")
         else:
             name=self.opening.get()
             self.loadDeck(name)
@@ -202,23 +229,26 @@ class DeckCreator():
         for galerie in self.galeries:
             galerie.pack_forget()
         self.galeries = []
+        self.frame.pack_forget()
+#        self.scrollbar.pack_forget()
+#        self.cardGalery.pack_forget()
         self.refreshCardSelector(self.fenetre)
     
     def changeAvatar(self,*args):
         name = self.avatars.get()
         self.deck["AvatarImage"]=name
-        print "avatar image is now ",self.deck["AvatarImage"]
+        print( "avatar image is now ",self.deck["AvatarImage"])
         self.showDeck()
         
     def loadDeck(self,name) :
-        print "load",name
+        print( "load",name)
         self.name.set(name)
         name=name.replace(" ","_")+".dek"   
         self.loaded=name
-        print " load ",name
+        print( " load ",name)
         try :
             deck= eval(open(name).read())
-            print "deck is",deck
+            print( "deck is",deck)
         except :
             if "Decks" not in name :
                 deck= eval(open(os.path.join("Decks",name)).read())
@@ -234,7 +264,7 @@ class DeckCreator():
         
 
     def showDeck(self) :
-        print "showDeck"
+        print( "showDeck")
         if hasattr(self,"deck_widg") :
             self.deck_widg.pack_forget()
         self.deck_widg=PanedWindow(master=self.fenetre1, orient=VERTICAL)
@@ -245,7 +275,7 @@ class DeckCreator():
         self.nb_card=0
         self.firstline.pack_forget()
         self.firstline=PanedWindow(master=self.fenetre1, orient=HORIZONTAL)
-        print "deck name:",self.name.get()
+        print( "deck name:",self.name.get())
         self.name_wid=Entry(master=self.firstline, width=30,textvariable=self.name)
         self.stars=0
         for creature in self.deck :
@@ -254,24 +284,27 @@ class DeckCreator():
                     self.deck[creature.capitalize()]=self.deck[creature]
                     del self.deck[creature]
                 else :
-                    print 'ERROR : card not found : "'+creature+'" in ',all_monsters.keys()
+                    print( 'ERROR : card not found : "'+creature+'" in ',all_monsters.keys())
         nbcoutreduit=0
         nbgainmana=0
-        coutred=re.compile("CoutReduit")
-        gain=re.compile("GainMana")
+        pouvoirslimites=["CoutReduit","GainMana","CoutDesSortsReduit","CoutDesMonstresReduit"]
+        limitregexp=[ re.compile(p) for p in pouvoirslimites]
+        nbpoulimites=[0]*len(pouvoirslimites)
         for s,n in self.deck.items():
             if s != "AvatarImage":
                 try:
                     all_monsters[s].getCost()
-                    self.stars+=all_monsters[s].getStars()*n
+                    starcostint=all_monsters[s].getStars()
+                    self.stars+=starcostint*n
+                    if starcostint>0 :
+                        print( n,"*",all_monsters[s].name,"(",starcostint,")")
                 except:
+                    print( "error with ",s,n)
                     del self.deck[s]
-                    print "error with ",s,n
-                nbcoutreduit+=len(coutred.findall(all_monsters[s].constructor()))*n
-                nbgainmana+=len(gain.findall(all_monsters[s].constructor()))*n
-        print "cout reduits",nbcoutreduit
-        print "stars",self.stars
-        print "gain mana",nbgainmana
+                for i in range(len(nbpoulimites)) :
+                    nbpoulimites[i]+=len(limitregexp[i].findall(all_monsters[s].constructor()))*n
+        print( [(p,nbpoulimites[i])  for i,p in enumerate(pouvoirslimites)])
+
         self.deck_stars=Label(master=self.firstline, text=self.stars)
         self.firstline.add(self.deck_stars)
         self.firstline.add( self.name_wid)
@@ -288,11 +321,12 @@ class DeckCreator():
               #     self.ligne+=1
                 #print "list deck",c
                 self.filename=c.replace(" ","_")+'.png'
-                p = ImageTk.PhotoImage(Image.open("Cards/"+self.filename).resize((120,180)))
+                pilImage = Image.open("Cards/"+self.filename).resize((120,180), Image.ANTIALIAS)
+                p = PhotoImage(pilImage)
                 self.ima.append(p)
                 card_zone = PanedWindow(master=actual_zone, orient=VERTICAL)
                 #nb_zone = PanedWindow(master=self.galerie_deck, orient=VERTICAL)
-                card_zone.add(Button(master=card_zone,  command=partial(self.removeCard,c),image =p))
+                card_zone.add(Button(master=card_zone,  command=partial(self.removeCard,c),image =p,width=120,height=180))
                 card_zone.add(Button(width=17,master=card_zone,  command= partial(self.removeCard,c) ,text=str(n)))
                 self.nb_card+=n
                 actual_zone.add(card_zone)
@@ -319,19 +353,19 @@ class DeckCreator():
         
         self.avatars = StringVar(self.deck_widg)
         try:
-            print "avatar=",self.deck["AvatarImage"]
+            print( "avatar=",self.deck["AvatarImage"])
             self.avatars.set(self.deck["AvatarImage"])      
         except:
             self.avatars.set("Avatars/Chevalier_noir#.png ")
             self.deck["AvatarImage"] = "Avatars/Chevalier_noir#.png "
-            print "no atribute avatarimage"
+            print( "no atribute avatarimage")
         avatar_wid = OptionMenu(self.deck_widg, self.avatars,*glob.glob("Avatars/*#.png"))
         avatar_wid.pack()
         self.avatars.trace('w', self.changeAvatar)
         self.deck_widg.add(avatar_wid)
         
         
-        if (self.nb_card>29 and nbcoutreduit<7 and nbgainmana<7) or __name__=='__main__':
+        if (self.nb_card>29 and all([n<7 for n in nbpoulimites])) or __name__=='__main__':
             if self.stars <= 15:
                 self.deck_widg.add(Button(master=self.deck_widg,  command= self.save ,text='save deck'))
             else:
@@ -339,12 +373,14 @@ class DeckCreator():
         else :
             if self.nb_card<30:                
                 self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text='30 cards and 15 stars needed to save deck')) 
-            elif nbcoutreduit>6:                
-                self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text=str(nbcoutreduit)+' couts reduits? Pas de ca ici.')) 
-            elif nbgainmana>6:                
-                self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text=str(nbgainmana)+' gains mana, c\'est trop')) 
+            else :
+                self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text='trop de '+' '.join([po for i,po in enumerate(pouvoirslimites) if nbpoulimites[i]>6])+". Pas de ca ici!"))
+#            elif nbpoulimites[i]>6:                
+#                self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text=str(nbcoutreduit)+' couts reduits? Pas de ca ici.')) 
+#            elif nbpoulimites[i]>6:                
+#                self.deck_widg.add(Button(master=self.deck_widg,  command= None ,text=str(nbgainmana)+' gains mana, c\'est trop')) 
                 
-        print "fin show"
+        print( "fin show")
         self.deck_widg.pack()
         self.firstline.pack()
 
@@ -364,7 +400,7 @@ class DeckCreator():
 
 if __name__=='__main__':
     fenetre = Tk()
-    fenetre.title('Clic to add a monster to deck')
+    fenetre.title('Clic to add a monster to deck _ close this windows to end deck creation')
     a=DeckCreator(fenetre,[])
     fenetre.mainloop()
     

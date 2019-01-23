@@ -1,7 +1,7 @@
 import pygame
 from copy import copy
 from functools import partial
-from Sprites import Animation,Sprite,Attach_to_Creature
+from Sprites import Animation,Sprite,Attach_to_Creature,OrderedUpdates
 #,Mark
 import random
 from types import MethodType,FunctionType
@@ -10,13 +10,15 @@ from Card import Card
 wound_img = pygame.transform.scale(pygame.image.load("gameAnimationImages/damage.png"),(300,260))
 wound_img.set_colorkey((0,0,0))
 
+
 class Creature() :
     def __init__(self,card,player,is_invocation=False,origin=None,bonus=False,damages=0,triggerPlayingEffect=False,param={}) :
-        if hasattr(player,"verbose") and player.verbose>3 : print "      Creature __init__ ",card.name," from ",player.name
+        #if hasattr(player,"verbose") and player.verbose>3 :
+        print( "      Creature __init__ ",card.name," from ",player.name)
         # origin is usually a cardInHand
         self.card=card
         if param : # sert pour le loadgame, beaucoup seront reecrases ensuite
-            for n,v in param.iteritems() :
+            for n,v in param.items() :
                 setattr(self,n,v)
         self.is_dead = False
         self.max_pv =card.pv
@@ -30,7 +32,7 @@ class Creature() :
             self.bonus=[copy(b) for b in card.bonus]
         else:
             self.bonus=bonus
-            print "My bonus are defined and are: ",bonus
+            print( "My bonus are defined and are: ",bonus)
             if len(bonus)==0 and len(card.bonus)>0 :
                 self.addMark("cross",size=(300,400),pos="center",typ="",level=1,value=0)
             for b in self.bonus :
@@ -54,6 +56,7 @@ class Creature() :
             # it is a spell
             #if not(self.bonus):
             #    print "creature",self,self.name,"de",self.player.name," bonus=",self.bonus
+            print('init : it is a spell')
             for m in player.army :
                 if m.max_pv>0 :
                     for b in m.bonus :
@@ -65,14 +68,18 @@ class Creature() :
             if origin and hasattr(origin,"getPosition") :
                 self.setPosition(origin.getPosition())
             self.game.effect_list.append([1,self.id,"appear",[]])
-            player.launch(self,card.bonus[0])
+            b = 0
+            for b in self.bonus:
+                if not(b.is_cost_alterator):
+                    player.launch(self,b)
+                    break
         else :
             if origin and isinstance(origin,Creature) :
                 self.is_invocation=True
             else :
                 self.is_invocation=False
             if not "simu" in self.player.name :
-                print "creation de creature ",self.name
+                print( "creation de creature ",self.name)
             for b in reversed(self.bonus) :
                 #if not "simu" in self.player.name :
                 #    print "after invoc ",b
@@ -89,8 +96,8 @@ class Creature() :
                         for b in m.bonus :
                             b.otherMonsterCreation(self)
             self.game.effect_list.append([1,self.id,"appear",[]])
-    def __eq__(self, other):
-        return self is other
+    #def __eq__(self, other):
+        #return self is other
     def equivalentto(self,other) :
 #        print [p1.__class__ for p1 in self.bonus],[p1.__class__ for p1 in other.bonus],[p1.__class__==p2.__class__ for p1,p2 in zip(self.bonus,other.bonus)]
 #        if self.name==other.name :
@@ -112,8 +119,9 @@ class Creature() :
     def combatAnim(self,target) :
         self.combat(target)
     def combat(self,target) :
-        #from Player import Computer0
-        #if not isinstance(target.player,Computer0) : print "combat de base",self,"attaque ",target
+        from Player import SimulationComputer
+        if not isinstance(self.player,SimulationComputer) :
+           print( "combat de base",self.name,"attaque ",target.name)
         #if isinstance(self.player,Computer0) : print " "*4*(2-self.player.nv),"combat de base",self.name,"attaque ",target.name
         self.ready=False
         for b in self.bonus :
@@ -150,13 +158,14 @@ class Creature() :
         self.attack(target)
     def sufferDamage(self,damage):
         if self.max_pv==0 :
-            print "error degat sur sort ?",self.name
+            print( "error degat sur sort ?",self.name)
             raise
         for b in reversed(self.bonus) : # pour que le dernier modificateur soit le premier a agir
             damage=b.modifyTakenDamage(damage)
         if damage > 0 :
             self.sufferDamageAnimation(damage)
         self.pv-=damage
+        #print self.name,"suffer ",damage," and has pv=",self.pv
         self.updateImage()
         if self.pv <1 and self.pv+damage>0 :
             #"print "                   die due to damage"
@@ -169,7 +178,7 @@ class Creature() :
         pass
     def addMark(self,name,pos="center",typ="external",level=1,size=0,value=0) :
         if "-simu" not in self.player.name :
-            print "fatal error Mark playing",self.name
+            print( "fatal error Mark playing",self.name)
             raise "toto"
         self.marks[name]=[value]
     def removeMark(self,name,level=1) :
@@ -186,22 +195,27 @@ class Creature() :
 #        return "Creature("+player_str
     
     def getValue(self):
+        bonusspecialordi=0
+        for p in self.bonus :
+            if "CarteImportante" in p.__class__.__name__ and hasattr(self,"playedby") :
+                bonusspecialordi+=[-p.level,p.level][self.player.id==self.playedby] # le negatif est special pour errants
+        #print "bonusspecialordi",bonusspecialordi
         if self.pv > 0 and not any([(p.__class__.__name__=="Errant") for p in self.bonus]) :
             #print "get cost",self.name,[p.__class__.__name__ for p in self.bonus]
             cost=self.att/2.+self.pv/2.+sum([abs(p.getCost(self))*p.interest*(2.+self.pv)/4. for p in self.bonus])
             #print self.att/2.,self.pv/2.,[(p.__class__.__name__,abs(p.getCost(self))*p.interest*(2.+self.pv)/4.) for p in self.bonus]
             for b in self.bonus :
                 if b.interest>1. :
-                    print "pb value with ",b.__class__,self.name
+                    print( "pb value with ",b.__class__,self.name)
                     b=0/0
             #if len(self.bonus)>0 : print self.name,cost,[(p.constructor(),abs(p.getCost(self))*p.interest) for p in self.bonus],2.5*sum([p.getStars() for p in self.bonus])
 #            for p in self.bonus :
 #                if abs(p.getCost(self))*p.interest < 0. :
 #                    print p.constructor()," is negative "
             #print "cost",cost,2.5*sum([p.getStars() for p in self.bonus]),sum([m[0] for m in self.marks.values()])
-            return cost+2.5*sum([p.getStars() for p in self.bonus])+sum([m[0] for m in self.marks.values()])
+            return cost+2.5*sum([p.getStars() for p in self.bonus])+sum([m[0] for m in self.marks.values()])+bonusspecialordi
         else :
-            return 0
+            return bonusspecialordi
     
     def die(self):
         if hasattr(self.player,"nv") :
@@ -212,7 +226,7 @@ class Creature() :
             verbose=self.player.adv.verbose>2
         else :
             verbose=False
-        if verbose : print " "*4*(2-nv), "die",self.name,self.id," de ",self.player.name," qui a ",[m.id for m in self.player.army]
+        if verbose : print( " "*4*(2-nv), "die",self.name,self.id," de ",self.player.name," qui a ",[m.id for m in self.player.army])
 #        print "self.pv",self.pv,type(self.pv)        
         self.pv=0
         if self in self.player.army :
@@ -225,7 +239,7 @@ class Creature() :
             if not (self in self.player.game.dead_monsters) :
                 self.player.game.dead_monsters.append(self)
         if verbose : 
-            print " "*4*(2-nv),"deads are ",[(m.name[:4],m.id) for m in self.player.game.dead_monsters]
+            print( " "*4*(2-nv),"deads are ",[(m.name[:4],m.id) for m in self.player.game.dead_monsters])
         if self.is_dead == False :
             self.is_dead = True
             if self.max_pv>0 :
@@ -240,7 +254,7 @@ class Creature() :
                         for b in m.bonus:
                             b.enemyDeath(self)
         if self in self.player.army :
-            print "very big problem"
+            print( "very big problem")
             raise
         # dans la simu le monstre sera dans l armee donc il faut que le remove soit apres le launch de agonie
             # spells are removed from army 
@@ -269,7 +283,7 @@ class CreatureCopy(Creature) :
             if i not in ("sufferDamageAnimation","takePlace","castSpellAnimation","combatAnim","appear","die","addMark","removeMark","updateImage") and i[0]!= "_":
                 if callable(getattr(original,i)) :
                     m1=getattr(original,i)
-                    f=FunctionType(m1.func_code,globals(),closure=m1.func_closure)
+                    f=FunctionType(m1.__code__,globals(),closure=m1.__closure__)
                     m=MethodType(f,self)
                     setattr(self,i,m)
                 else :
@@ -294,7 +308,7 @@ class AnimatedCreature(Sprite,Creature) :
                 else :
                     screen_info = pygame.display.Info() #Required to set a good resolution for the game screen
                     height,width = screen_info.current_h, screen_info.current_w
-                    print "image manquante ,name=",name
+                    print( "image manquante ,name=",name)
                     card.image = card.createImage(True)
                     pygame.image.save(card.image,name+".png")
                     card.image = pygame.image.load(name+".png")
@@ -446,7 +460,7 @@ class AnimatedCreature(Sprite,Creature) :
                         if u :
                             image=pygame.image.load(u[0])
                         else :
-                            print "Mark : */"+fname," not found"
+                            print( "Mark : */"+fname," not found")
                             raise
             if size :
                 image = pygame.transform.scale(image,size)
@@ -467,7 +481,7 @@ class AnimatedCreature(Sprite,Creature) :
         #self.graphism.blit(image,position)
     def removeMark(self,name,level=0) :
         if not name in self.marks  :
-            print "removeMark : fatal error : name",name," not in marks ",self.marks.keys()," of creature ",self.name,self
+            print( "removeMark : fatal error : name",name," not in marks ",self.marks.keys()," of creature ",self.name,self)
             return
         if level :
             #print " level ->",self.marks[name][2],"-",level
@@ -482,6 +496,7 @@ class AnimatedCreature(Sprite,Creature) :
     #    print name," destroyed from ",self
     def combatAnim(self,target):
         #print "combat de base pour animated creature"
+        self.ready=False
         if target is not self :
             phase1 = (target.center,10, None)
             phase2=(self.center,10,None)

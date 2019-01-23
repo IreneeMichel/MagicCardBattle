@@ -1,5 +1,6 @@
 import os
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+import os, sys
+os.path.abspath(os.path.dirname(sys.argv[0]))
 #import sys
 #sys.path.append('MagicCardBattle')
 #from math import floor
@@ -38,7 +39,7 @@ gob.getCost()
 
 #------------------------------------------
 
-from Tkinter import Tk
+from tkinter import Tk
 
 def run(blocked_creature=[]):
     fenetre = Tk()

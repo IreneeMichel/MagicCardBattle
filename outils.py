@@ -14,12 +14,12 @@ def file2name (fname,extension=''):
 def name2file (folder,name,extension=''):
     out=localpath(os.path.join(folder,name+extension).replace(" ","_"))
     if not os.path.exists(out) :
-        print out+" does not exist"
+        print (out+" does not exist")
     return out
 
 def localopen (name,*args):
     import glob
-    print localpath(name)
-    print glob.glob(name)
-    print glob.glob(localpath(name))
+    print ("outils",localpath(name))
+    print ("outils",glob.glob(name))
+    print ("outils",glob.glob(localpath(name)))
     return open(localpath(name),*args)

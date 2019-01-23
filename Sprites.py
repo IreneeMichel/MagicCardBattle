@@ -1,6 +1,5 @@
 import pygame
 from copy import copy
-from types import InstanceType,StringType 
 
 img_hero = pygame.image.load("gameAnimationImages/hero_icon.png")
 img_mouse_target = pygame.image.load("gameAnimationImages/target.png")
@@ -47,9 +46,9 @@ class Mouse(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         
-        self.image = pygame.Surface((16,16))
-        pygame.draw.circle(self.image,(155,0,0),(8,8),8)
-        self.image.set_colorkey((0,0,0))
+        self.cursor_image = pygame.image.load("gameAnimationImages/cursor.png")
+        self.image = self.cursor_image
+        self.image.convert_alpha()
         
         self.mode = "normal"
         
@@ -58,14 +57,14 @@ class Mouse(pygame.sprite.Sprite):
         self.rect.y = 0
     def update(self):
         if self.mode == "normal":
-            self.image = pygame.Surface((16,16))
-            pygame.draw.circle(self.image,(155,0,0),(8,8),8)
-            self.image.set_colorkey((0,0,0))
+            self.image = self.cursor_image
+            self.rect.x = pygame.mouse.get_pos()[0]
+            self.rect.y = pygame.mouse.get_pos()[1]
         else:
             self.image = img_mouse_target
             self.image.set_colorkey((0,0,0))
-        self.rect.x = pygame.mouse.get_pos()[0]
-        self.rect.y = pygame.mouse.get_pos()[1]
+            self.rect.x = pygame.mouse.get_pos()[0] - self.image.get_size()[0]/2
+            self.rect.y = pygame.mouse.get_pos()[1]- self.image.get_size()[1]/2
         
 class EndButton(pygame.sprite.Sprite):
     def __init__(self,screen):
@@ -96,14 +95,14 @@ class Sprite(pygame.sprite.Sprite) :
     def __init__(self,origin,image,size=None) :
         # si origin est une position, il faut donner ensuite une valeur a game
         pygame.sprite.Sprite.__init__(self)
-        if type(image)==StringType :
+        if isinstance(image,str):
             self.image = pygame.image.load(image)
             self.image.set_colorkey((255,255,255))
             self.image.convert_alpha()
         elif image :
             self.image=image
         else :
-            print "call of Sprite with no image"
+            print( "call of Sprite with no image")
             self.image=copy(origin.image)
         if not(hasattr(self,"graphism")):
             self.graphism=copy(self.image)
@@ -120,7 +119,6 @@ class Sprite(pygame.sprite.Sprite) :
         else :
             self.center =origin
         self.setPosition(self.center)
-        # ajouter aux sprites visibles
     def setPosition(self,pos) :
         self.center=pos ;
         self.rect.x = self.center[0]-self.size[0]/2
@@ -172,7 +170,7 @@ class Animation :
         #            def __init__(self,dest,time,size,effect):
     def animate(self):
         if not hasattr(self,"pos") :
-            print "Animation : no pos ? for",self,self.subject
+            print( "Animation : no pos ? for",self,self.subject)
         if self.pos :
             self.subject.setPosition(self.pos.pop())
             self.subject.size = (int(self.subject.size[0] + self.increase_size[0]), int(self.subject.size[1] + self.increase_size[1]))
@@ -181,11 +179,11 @@ class Animation :
                 for effect in self.subject.child:
                     effect.update()
             if any([s<0 for s in self.subject.size] ) :
-                print "self.subject.size ",self.subject.size
+                print( "self.subject.size ",self.subject.size)
                 try :
-                    print "ERROR with ",self.subject.name
+                    print( "ERROR with ",self.subject.name)
                 except :
-                    print "ERROR with unnamed sprite"
+                    print( "ERROR with unnamed sprite")
             else :
                 self.subject.image = pygame.transform.scale(self.subject.graphism,self.subject.size)
                 #print "animate"
@@ -205,6 +203,7 @@ class Animation :
             else :
                 self.increase_size = (0,0)
             if destination :
+                delay=int(delay)
                 self.pos = [(self.subject.center[0]+i*(destination[0]-self.subject.center[0])/delay,self.subject.center[1]+i*(destination[1]-self.subject.center[1])/delay) for i in range(delay+1,0,-1)]
             else :
                 self.pos = None
@@ -308,7 +307,10 @@ class CardInHand(Sprite) :
             self.image = pygame.transform.scale(self.graphism,self.size)
 
     def getCost(self):
-        return self.content.getCost()
+        cost = self.content.getCost()
+        for b in self.content.bonus:
+            cost = b.modifyOwnManaCost(self,cost)
+        return int(cost)
 
     def position(self,num,totaln) :
         self.num = num
@@ -332,6 +334,17 @@ class CardInHand(Sprite) :
     
  
  
- 
+class OrderedUpdates(pygame.sprite.OrderedUpdates) :
+    def __getitem__(self,i) :
+        return self.sprites()[i]
+    def append(self,a) :
+        self.add(a)
+    def index(self,obj) :
+        return self.sprites().index(obj)
+    def __add__(self,li2) :
+        li1=copy(self)
+        for i in li2 :
+            li1.append(li2)
+        return li1
 
     

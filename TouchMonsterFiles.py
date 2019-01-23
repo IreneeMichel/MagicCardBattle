@@ -70,16 +70,16 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 #     pickle.dump(mobs,open(f,"wb"))
 from Card import readMonsters
 
-print "nettoyage unknown_monsters.sav"
+print ("nettoyage unknown_monsters.sav")
 monsters = readMonsters(os.path.join("CardFiles","unknown_monsters.sav"))
 for f in glob.glob("CardFiles/*_monsters.sav"):
      if ("unknown_monsters.sav" in f) or ("all_monsters.sav" in f) or ("recup_monsters.sav" in f) :
          continue
-     print "cards in ",f
+     print ("cards in ",f)
      good = readMonsters(f)
      for m in good :
          if m in monsters :
-             print m
+             print( m)
              del monsters[m]
 
 open(os.path.join("CardFiles","unknown_monsters.sav"),"w").write("\n".join([m.constructor() for m in monsters.values()]))
@@ -91,16 +91,16 @@ all_monsters = readMonsters(os.path.join("CardFiles","all_monsters.sav"))
 #    
 #    pickle.dump(monsters,open(  "CardFiles/all_monsters.sav","wb"))   
 
-print "recreation toutes images et met Majuscule"
+print ("recreation toutes images et met Majuscule")
 bad_opt={}
 problem=[]
 for f in glob.glob("CardFiles/*_monsters.sav"):
      if ("all_monsters.sav" in f) or ("recup_monsters.sav" in f) :
          continue
-     print "** cards in ",f
+     print ("** cards in ",f)
      mobs = readMonsters( f)
      for n,m in mobs.items() :
-         print "* "+n
+         print ("* "+n)
          try :
              goodname=n[0].upper()+n[1:]
              if n!=goodname :
@@ -123,15 +123,15 @@ for f in glob.glob("CardFiles/*_monsters.sav"):
                         problem.append([f,n,"part 3"])
                      #time.wait(1)
                  except Exception as err:
-                     print err
+                     print (err)
                      problem.append([f,n,"part 2.5 : recherche image"])                    
              except :
                 problem.append([f,n,"part 2"])
          except:
              problem.append([f,n,"part 1"])
 
-print "problem with ",problem
-print "\na revoir",bad_opt
+print ("problem with ",problem)
+print ("\na revoir",bad_opt)
 
              
  

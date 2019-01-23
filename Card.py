@@ -6,18 +6,21 @@ UP=re.compile('(?=[A-Z])')
 import os
 #import pickle
 import shutil
-from Tkinter import PanedWindow,Label,StringVar,Entry,OptionMenu,Button,Spinbox
-from tkMessageBox import askyesno,showinfo
-from Tkinter import TOP,VERTICAL,HORIZONTAL,BOTH,CENTER,E,W
+import tkinter
+from tkinter import PanedWindow,Label,StringVar,Entry,OptionMenu,Button,Spinbox
+from tkinter.messagebox import askyesno,showinfo
+from tkinter import TOP,VERTICAL,HORIZONTAL,BOTH,CENTER,E,W,RIGHT
 #import tkFont
-from PIL import Image, ImageTk
+from PIL import Image
+from PIL.ImageTk import PhotoImage
+
 import glob
 #from tkMessageBox import rr
 #os.chdir("C:\\Users\\Test\\Documents\\programmation\\MCB2")
 
 #import cardPowers
-from Bonus import getBonusMenu
-import Spell 
+from Bonus import getBonusMenu, getCostAlteratorMenu
+import Spell
 
 from outils import file2name,name2file
 from outils import localopen
@@ -30,23 +33,23 @@ def readMonsters(filename) :
                 c=evalCard(m)                
                 monsters[c.name]=c
             except :
-                print "in file ",filename
-                print "ERROR reading line :",m
+                print ("in file ",filename)
+                print ("ERROR reading line :",m)
                 raise
     return monsters
 
 def evalCard(str1) : # fonctionne sur carte comme sur liste de cartes
-    import cardPowers
+    import CardPowers
     import Target
     import Level
-    return eval(str1)    
+    return eval(str1.replace("],u'","],'").replace('],u"','],"').replace('cardPower','CardPower'))   # a cause compatibilite python 2->3 
 
 def centerText(screen,position,text,fontSize,color,bg=None) :
     font = pygame.font.SysFont("Calibri Bold",fontSize)
     try:
         textImage = font.render(text,False, color)
     except:
-        print "problem with color ",color,"- black (0,0,0)  is taken"
+        print ("problem with color ",color,"- black (0,0,0)  is taken")
         textImage = font.render(text,False, (0,0,0))
     #textImage = font.render(text,False, (0,0,0),background=bg)
     x,y=textImage.get_size()
@@ -119,18 +122,25 @@ class Card :
             #if self.bonus :
             #print self.bonus[0].getCost
             #print self.bonus[0].getCost()           
-            if len(self.bonus)>1 : print "** anomalie **"
-            cost=sum([p.getCost() for p in self.bonus])+0.5*(len(self.bonus)-1)
+            #if len(self.bonus)>1 : print "** anomalie **"
+            S = 0
+            for p in self.bonus:
+                if p.is_cost_alterator:
+                    S += p.getCost(self)
+                else:
+                    S += p.getCost()
+            cost=S# +0.5*(len(self.bonus)-1): why?
         if cost < 0:            cost = 0
         if hasattr(self,"cost") and self.cost!=None :
             # pour les monstres du save, l attribut cost est None        
-            print "cout=",cost," so ",int(floor(cost))
+            print ("cout=",cost," so ",int(floor(cost)))
             self.cost.set(int(floor(cost)))
             self.getStars()
         return cost
     def getStars(self):
         stars = sum([p.getStars() for p in self.bonus])
         if stars>2 : stars=(stars-1)*2
+        if stars<0 : stars=0
         if hasattr(self,"stars")  and self.stars != None :
             # pour les monstres du save, l attribut stars existe = None
             self.stars.set('* '*stars)
@@ -204,10 +214,10 @@ class Card :
 
         image = self.createImage()
         
-        print "apres createImage"
+        print ("apres createImage")
         name=self.name.replace(" ","_")
         pygame.image.save(image,"Cards/"+name+".png")
-        print "save image done"
+        print ("save image done")
         # now new monster
         loaded_monsters=readMonsters(self.dumping_file)
         #print "Monsters from file = ",file_monsters
@@ -218,19 +228,19 @@ class Card :
         all_monsters.update(loaded_monsters)
         #print "window reinit done"
         with open(self.dumping_file,"wb") as savefile :      
-            savefile.write("\n".join([m.constructor() for k,m in sorted(loaded_monsters.items())]))
+            savefile.write(bytes("\n".join([m.constructor() for k,m in sorted(loaded_monsters.items())]),'UTF-8'))
 #        with open(self.dumping_file+".old","rb") as filepickle :
 #            print "now in file", self.dumping_file,":",pickle.load(filepickle).keys()
 #            filepickle.close()
         with open(os.path.join("CardFiles","all_monsters.sav"), "wb" ) as f :
-            f.write("\n".join([m.constructor() for m in all_monsters.values()]))
+            f.write(bytes("\n".join([m.constructor() for m in all_monsters.values()]),'UTF-8'))
         recupfile=os.path.join("CardFiles","recup_monsters.sav")
         if (not os.path.isfile(recupfile)) or len(all_monsters)>=len(open(recupfile,'r').readlines()):
             with open(recupfile, "wb" ) as f :
-                f.write("\n".join([m.constructor() for k,m in sorted(all_monsters.items())]))
-            print "SAVED in all_monsters.sav and recup_monsters.sav"
+                f.write(bytes("\n".join([m.constructor() for k,m in sorted(all_monsters.items())]),'UTF-8'))
+            print ("SAVED in all_monsters.sav and recup_monsters.sav")
         else:
-            print "WARNING : Recup monster file bigger than all monsters file"
+            print ("WARNING : Recup monster file bigger than all monsters file")
 
     def initWidget(self,fenetre) :
         #print "init"
@@ -238,7 +248,7 @@ class Card :
         fenetre.child=self
         self.refreshWidget()
     def Open(self,*args) :
-        print "open monster ",  self.opening.get()
+        print ("open monster ",  self.opening.get())
         #deck_with_card =  self.deck_check(self.opening.get())
         creature = Card.monster_list[self.opening.get()]
         if not ( creature.name in Card.blocked_creature) :
@@ -247,7 +257,7 @@ class Card :
             #for i in Card.monster_list.keys() :
             #    print i, Card.monster_list[i].getInlineDescription()
             self = Card.monster_list[self.opening.get()]
-            print self.name +" loaded"
+            print (self.name +" loaded")
             if self.pv<1 :
                 self.is_spell=True
             else :
@@ -271,7 +281,7 @@ class Card :
         
         creature= self.delete.get()
         if creature in Card.blocked_creature :
-            print "not possible : creature in campaign"
+            print ("not possible : creature in campaign")
             self.delete.set('delete')
             return
         if askyesno('Beware!', 'Confirm the deletion of '+creature+"?"):                
@@ -285,58 +295,61 @@ class Card :
         dm=None
         global all_monsters
         if not creature in all_monsters :
-            print creature," is not in all_monsters"
+            print (creature," is not in all_monsters")
             try :
                 fm=os.path.join("CardFiles",self.category.get()+"_monsters.sav")
                 dm = readMonsters(fm)
             except:
-                print "error reading file ",fm
+                print ("error reading file ",fm)
         else :
-            print "delete monster ",  creature
+            print ("delete monster ",  creature)
             try :
                 fm = os.path.join("CardFiles",(all_monsters[creature].monster_type)+"_monsters.sav")
                 dm = readMonsters(fm)
             except:
-                print "ERROR : no type for ",creature, " or read error"
+                print ("ERROR : no type for ",creature, " or read error")
             del all_monsters[creature]
             fall=os.path.join("CardFiles","all_monsters.sav") 
             with open(fall,"wb") as savefile :
-                savefile.write("\n".join([m.constructor() for m in all_monsters.values()]))            
-            print "deletion of monster ",  creature, "done"
+                savefile.write(bytes("\n".join([m.constructor() for m in all_monsters.values()]), 'UTF-8'))            
+            print ("deletion of monster ",  creature, "done")
             shutil.copyfile(fall,"CardFiles/recup_monsters.sav")
         if dm and creature in dm :
             del dm[creature]
             with open(fm,"wb") as savefile :
-                savefile.write("\n".join([m.constructor() for m in dm.values()]))
-            print "deletion of monster ",  creature, " in ",fm," done"                
+                print('dmv',dm.values())
+                savefile.write(bytes("\n".join([m.constructor() for m in dm.values()]), 'UTF-8'))
+            print ("deletion of monster ",  creature, " in ",fm," done" )
         else :
-            print creature," not found in dedicated file"
+            print (creature," not found in dedicated file")
             
             
         
     def choosePhoto(self,*args) :
-        from tkFileDialog import askopenfilename
+        from tkinter.filedialog import askopenfilename
         #Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
-        filename = askopenfilename(defaultextension=".gif",filetypes=[('Jpg file','*.jpg'),('GIF file','*.gif')]) # show an "Open" dialog box and return the path to the selected file
+        filename = askopenfilename(defaultextension=".gif",filetypes=[('PNG file','*.png'),('Jpg file','*.jpg'),('GIF file','*.gif')]) # show an "Open" dialog box and return the path to the selected file
         if filename:
             import os.path
             chem=os.path.dirname(os.path.realpath(__file__)).replace('\\','/')+'/'
-            print chem
+            #print chem
             if chem in filename :
                 filename=filename.replace(chem,'')
-                print "filename modif",filename
+                print ("filename modif",filename)
             try :
-                Image.open(filename)
+                pilImage = Image.open(filename)
+                PhotoImage(pilImage,master=None)
                 #ImageTk.PhotoImage(monimage)
                 self.photofile=filename
-                print "photo choosen !"
+                print ("photo choosen !")
             except Exception :
-                print "echec ouverture"
+                print ("echec ouverture image")
+                raise
         self.refreshWidget()
 
     def setFile(self,*args):
         self.dumping_file = os.path.join("CardFiles",self.category.get()+"_monsters.sav")
-        print "Change dumping file to ",self.dumping_file
+        print ("Change dumping file to ",self.dumping_file)
         self.monster_type = self.category.get()
         Card.monster_list=readMonsters(self.dumping_file)
         #from cardPowers import *
@@ -360,7 +373,7 @@ class Card :
                 assert('"' not in name.get())
                 name.get().encode('ascii')
             except Exception as e:
-                print "error on name"
+                print ("error on name")
                 name.set(self.name)
                 return
             old = self.name in Card.blocked_creature
@@ -387,26 +400,32 @@ class Card :
         #Create an Image Zone
         image_zone=Button(self.card_win,  command=self.choosePhoto)
         if hasattr(self,"photofile") and self.photofile :            
-            print "Image: ",self.photofile
+            print ("Image: ",self.photofile)
             try :
-               img=Image.open(self.photofile)
+                pilImage=Image.open(self.photofile)
+                img=PhotoImage(pilImage,master=image_zone)
             except :
                decomp=self.photofile.split('/')
                for i in range(1,6) :
                    try :
                        fname="/".join(decomp[-i:])
-                       print "try to open",fname
-                       img=Image.open(fname)
+                       print ("try to open",fname)
+                       pilImage = Image.open(fname)
+                       img=PhotoImage(pilImage,master=image_zone)
                        self.photofile=fname
                        break
                    except :
                        self.photofile=None
         if self.photofile :
-            w, h = img.size
-            if w>300 or h>200 :
-               img=img.resize((w/2,h/2),Image.LINEAR)
-            image_zone.image=ImageTk.PhotoImage(img)
-            image_zone.config(image=image_zone.image)
+            w, h = img.width(), img.height()
+            print('wh',w,h)
+            if h>400 :
+                print("reduction")
+                img=PhotoImage(pilImage.resize((w//2,h//2), Image.ANTIALIAS),master=image_zone)
+            image_zone=Button(self.card_win,image=img,  command=self.choosePhoto)
+            image_zone.image=img
+            #image_zone.configure(image=image_zone.image,width=50,height=50,compound=RIGHT)
+            #image_zone.pack()
             #print "IMAGE CHANGED"
         else :
             from os import path
@@ -416,7 +435,7 @@ class Card :
             else :
                 image_zone.config(text='clic to choose image',background='white',anchor=CENTER)
 
-        image_zone.pack
+        #image_zone.pack()
         
         
         # POWER ZONE
@@ -439,10 +458,13 @@ class Card :
             powline.add(removepow)
             power_zone.add(powline) 
         def addPower(*args) :
-            name=addBonus.get()
-            print "added :",name
-            import cardPowers
-            self.bonus+=[eval('cardPowers.'+name+'()')]
+            if addBonus.get()!= "add bonus":
+                name=addBonus.get()
+            else:
+                name=add_cost_alteration.get()
+            print ("added :",name)
+            import CardPowers
+            self.bonus+=[eval('CardPowers.'+name+'()')]
             self.bonus[-1].parent=self.bonus
             self.bonus[-1].card=self
             #self.card_win.pack_forget()
@@ -450,10 +472,19 @@ class Card :
         #Add bonus Option menu
         addBonus = StringVar(power_zone)
         addBonus.set("add bonus") # default value
-        if not self.pv:  addBonus_wid = Spell.getSpellMenu(power_zone, addBonus)
+        if not self.pv:  
+            addBonus_wid = Spell.getSpellMenu(power_zone, addBonus)
+            
+            add_cost_alteration = StringVar(power_zone)
+            add_cost_alteration.set("add cost alterator")
+            add_cost_alteration.trace('w',addPower)
+            addCostAlteration_wid = getCostAlteratorMenu(power_zone,add_cost_alteration)
+            addCostAlteration_wid.pack()
+            power_zone.add(addCostAlteration_wid)
+            
         else: addBonus_wid = getBonusMenu(power_zone, addBonus) 
         addBonus.trace('w', addPower)
-        if self.pv>0 or len(self.bonus)==0 :
+        if self.pv>0 or len(self.bonus)==0 or all([b.is_cost_alterator for b in self.bonus]):
             addBonus_wid.pack()
             #Add this to power zone
             power_zone.add(addBonus_wid)
@@ -514,7 +545,7 @@ class Card :
         att.set(str(self.att))
         pv=StringVar() ; pv.set(str(self.pv))
         def modifiedAttPv(*args) :
-            print "modifiedAttPv"
+            print ("modifiedAttPv")
             self.pv=int(pv.get())
             if self.pv<1 and self.is_spell==False :
                 if len(self.bonus)==0 :
@@ -555,15 +586,15 @@ class Card :
         width=189*2; height=277*2
         screen = pygame.display.set_mode((width,height))
 
-        print "Type = ",self.monster_type
+        print ("Type = ",self.monster_type)
         if self.monster_type in all_backgrounds.keys():
             try:
                 bg = pygame.image.load(all_backgrounds[self.monster_type])
             except:
-                print "error (? when load of bg"
+                print ("error (? when load of bg")
         else:
             bg = pygame.image.load('gameAnimationImages/Card_face_avant.gif')
-        #fond = PhotoImage(file =bg,master=fenetre)
+        #fond = PhotoImage(file =bg,master=fenetre) pilImage = Image.open(
         #ligne1 = canvas.create_line(75, 0, 75, 120)
         #ligne2 = canvas.create_line(0, 60, 150, 60)      
         if self.photofile and not black:
@@ -574,7 +605,7 @@ class Card :
                for i in range(1,6) :
                    try :
                        fname="/".join(decomp[-i:])
-                       print "try to open",fname
+                       print ("try to open",fname)
                        img=pygame.image.load(fname)
                        self.photofile=fname
                        break
@@ -582,7 +613,7 @@ class Card :
                        pass
             img = pygame.image.load(self.photofile)
             w, h = img.get_size()
-            factor=max(140.*2./w,90.*2./h)
+            factor=max(150.*2./w,90.*2./h)
             img=pygame.transform.scale(img,(int(w*factor),int(h*factor)))
             #fenetre.photo=PhotoImage(file=self.photofile,master=canvas)
             #img=ImageTk.PhotoImage(img,master=fenetre)
@@ -591,7 +622,7 @@ class Card :
             try :
                 name=self.name.replace(" ","_")
                 img=pygame.image.load("Cards/"+name+".png")
-                print "* Found for image ","Cards/"+name+".png"
+                print ("* Found for image ","Cards/"+name+".png")
                 screen.blit(img,(0,0))
             except :
                 pass
@@ -603,7 +634,7 @@ class Card :
             color = (255,255,255)
         else:
             color = (0,0,0)
-        centerText(screen,(width/2.+10.,33.*2.),self.name,36-(len(self.name)>11)*(len(self.name)-11)/3,color)
+        centerText(screen,(width/2.+10.,33.*2.),self.name,36-(len(self.name)>11)*(len(self.name)-11)//3,color)
         #txt = canvas.create_text(101, 32, text=self.name, font=("Calibri",12-(len(self.name)>11)*(len(self.name)-11)/5,"bold"), anchor=CENTER)
         if not(self.is_spell):
             centerText(screen,(24*2.,258*2.),str(self.att),40,color)
@@ -626,22 +657,24 @@ class Card :
         centerText(screen,(95*2.,142*2.),self.monster_type.capitalize(),26,Color)
         
         if len(self.bonus)>0 :
-            powers = "e%96".join([b.getDescription() for b in self.bonus])
+            powers = "e%96".join([b.getDescription() for b in self.bonus if b.getDescription()])
             powers = [p.split("\n") for p in powers.split("e%96")]
-            print "powers are ",powers
+            print ("powers are ",powers)
         else :
             powers =""
         #print "POWERS = ", powers
         if powers: 
             space=min([80., 160./sum([len(p)*3+2 for p in powers])])
-            print "Space: ",space
+            print ("Space: ",space)
         line = 0
         for i,b in enumerate(powers):
-            size = min([36.,500./max([len(p) for p in b]) * 2.])
-            for x,part in enumerate(b):
-                centerText(screen,(90*2.,167*2.+line*space),part,int(size),color)
-                line += 3
-            line += 2
+            if b!=[''] :
+                print ("power",b)
+                size = min([36.,500./max([len(p) for p in b]) * 2.])
+                for x,part in enumerate(b):
+                    centerText(screen,(90*2.,167*2.+line*space),part,int(size),color)
+                    line += 3
+                line += 2
         #canvas.pack()
         #print "toto!"
         pygame.display.flip()
@@ -654,7 +687,7 @@ class Card :
         self.content.set(self.name)
         self.content.trace("w", self.is_changed_as_invocation)
         l = [ m for m in Card.monster_list.keys() if (spells or all_monsters[m].pv>0) and not(m in Card.blocked_creature) 
-                  and (not "PlainteMaudite" in all_monsters[m].constructor()) and not any([b.__class__.__name__=="Charge" for b in all_monsters[m].bonus]) ]
+                  and (spells or not "PlainteMaudite" in all_monsters[m].constructor()) and not any([b.__class__.__name__=="Charge" for b in all_monsters[m].bonus]) ]
         """
         if self.parent.name in l:
             l.remove(self.parent.name)
@@ -663,7 +696,7 @@ class Card :
         return self.widget
         
     def is_changed_as_invocation(self,*args):
-        print "monster is_changed_as_invocation"
+        print ("monster is_changed_as_invocation")
         if self.content.get()!= "Troll gris":
             new= Card.monster_list[self.content.get()]
         else:
@@ -694,15 +727,15 @@ if True:
     try :
         all_monsters=readMonsters(os.path.join("CardFiles","all_monsters.sav"))
     except :
-        print "it exists",glob.glob("*/*monster*.sav")
-        print "pas de fichier CardFiles/all_monsters.sav"
+        print ("existing files are ",glob.glob("*/*monster*.sav"))
+        print ("error reading CardFiles/all_monsters.sav")
         try:
             #from cardPowers import *
             shutil.copyfile("CardFiles/recup_monsters.sav","CardFiles/all_monsters.sav")
             all_monsters=readMonsters("CardFiles/all_monsters.sav")
-            print "recup all monsters"
+            print ("recup all monsters")
         except:
-            print " pas de recuperation"           
+            print (" pas de recuperation")
             all_monsters = {"Troll gris":troll}
 
 

@@ -4,7 +4,7 @@ Created on Wed Dec 09 16:40:35 2015
 
 @author: test
 """
-from Tkinter import OptionMenu
+from tkinter import OptionMenu
 #import random
 
 class Target():
@@ -96,11 +96,11 @@ class Armaguedon(Target):
         try:
             return [m for m in origin.player.army if m and m.pv>0  and m.max_pv>0 ]+[m for m in origin.player.adv.army if m and m.pv>0  and m.max_pv>0 ]
         except:
-            print "ANOMALIE de TARGET"
+            print( "ANOMALIE de TARGET")
             return origin.player.army+origin.player.adv.army
     def getCostMultiplier(self,spell):
         return 1.8
-        
+
 
 target_dir = dir()
 
