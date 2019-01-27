@@ -474,14 +474,6 @@ class Card :
         addBonus.set("add bonus") # default value
         if not self.pv:  
             addBonus_wid = Spell.getSpellMenu(power_zone, addBonus)
-            
-            add_cost_alteration = StringVar(power_zone)
-            add_cost_alteration.set("add cost alterator")
-            add_cost_alteration.trace('w',addPower)
-            addCostAlteration_wid = getCostAlteratorMenu(power_zone,add_cost_alteration)
-            addCostAlteration_wid.pack()
-            power_zone.add(addCostAlteration_wid)
-            
         else: addBonus_wid = getBonusMenu(power_zone, addBonus) 
         addBonus.trace('w', addPower)
         if self.pv>0 or len(self.bonus)==0 or all([b.is_cost_alterator for b in self.bonus]):

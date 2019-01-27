@@ -5,7 +5,7 @@ import time
 import random
 import deck_creation
 #import traceback
-#os.chdir(os.path.dirname(os.path.realpath(__file__)))
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 pygame.init()
 
@@ -587,7 +587,7 @@ class Game():
             if mouselist :
                 if self.zoomed != mouselist[-1]:
                     sound = pygame.mixer.Sound("Sounds/2731.wav")
-                    sound.set_volume(0.5)
+                    sound.set_volume(0.3)
                     sound.play(0)
                 self.zoomed = ZoomOn(mouselist[-1])
                 self.screen.blit(self.zoomed.image,(self.width/2-141,self.height/2-204))              
