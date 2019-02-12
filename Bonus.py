@@ -316,8 +316,8 @@ def getNegativeSpellMenu(master,variable) :
     from tkinter import OptionMenu
     #print dir(CardPowers)
        
-    list_spells = ['Assassinat','Degat','Bonus','BouclierDivin','ChangementDeCamp','Guerison','DegatSurSonHeros',
-    'GuerisonTotale','ReduitUnServiteurA1Vie','ReduitUnServiteurA1Att','Sarcophage',"DefausserSoi"]
+    list_spells = ['Assassinat','Degat','Bonus','BouclierDivin','Guerison','DegatSurSonHeros',
+    'GuerisonTotale','ReduitUnServiteurA1Vie','ReduitUnServiteurA1Att',"DefausserSoi"]
     
     
     bm = OptionMenu(master,variable,*list_spells)

@@ -1414,7 +1414,7 @@ class Sarcophage(SpellWithLevel) :
         if isinstance(target,AnimatedCreature) : print( "appel sarco effect")
         if isinstance(target,Creature) and target.pv>0:
             if hasattr(target,"sarcoturn") and target.sarcoturn>0 :
-                target.sarcoturn = max(target.sarcoturn,self.level)
+                target.sarcoturn = max(target.sarcoturn,self.level.getLevel(origin))
                 return
             #print "sarco sur",target.name
             #if isinstance(target,AnimatedCreature) : print "sarco sur",target.name

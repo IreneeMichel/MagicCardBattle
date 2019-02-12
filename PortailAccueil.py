@@ -17,6 +17,8 @@ import Player
 
 import CardGame
 from copy import copy
+                
+import re
 
 from types import MethodType
 
@@ -192,13 +194,18 @@ class DeckButton(Button):
             except :
                 print (" in ",all_cards.keys(), " looking for ",deck.keys())
                 raise
-            if stars>15 and len(argus)!=2:
+            pastrop=0
+            pouvoirslimites=["CoutReduit","GainMana","CoutDesSortsReduit","CoutDesMonstresReduit"]
+            for p in pouvoirslimites :
+                rp=re.compile(p)
+                pastrop=max(pastrop,sum([len(rp.findall(all_cards[k[0]].constructor()))*k[1] for k in deck.items()] ))
+            if (stars>15 or pastrop>=6) and len(argus)!=2:
                 self.accessible = False
                 color = RED
                 def updat(self):
                     pass
                 self.update = MethodType(updat,self)
-            elif stars>15:
+            elif stars>15  or pastrop>=6 :
                 self.accessible = True
                 color = RED
             else:
