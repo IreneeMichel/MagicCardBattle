@@ -5,7 +5,7 @@ Created on Fri Dec 18 18:15:59 2015
 @author: Cyprien et Frederic MICHEL--DELETIE
 """
 import os
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+os.chdir(os.path.dirname(os.path.realpath("__file__")))
 
 import pygame
 from copy import copy
@@ -195,10 +195,13 @@ class DeckButton(Button):
                 print (" in ",all_cards.keys(), " looking for ",deck.keys())
                 raise
             pastrop=0
-            pouvoirslimites=["CoutReduit","GainMana","CoutDesSortsReduit","CoutDesMonstresReduit"]
+            pouvoirslimites=["CoutReduit[(]","GainMana","CoutDesSortsReduit","CoutDesMonstresReduit"]
             for p in pouvoirslimites :
                 rp=re.compile(p)
                 pastrop=max(pastrop,sum([len(rp.findall(all_cards[k[0]].constructor()))*k[1] for k in deck.items()] ))
+                if pastrop>=6 :
+                    print(deck_name," interdit de campagne par trop de ",p)
+                    break
             if (stars>15 or pastrop>=6) and len(argus)!=2:
                 self.accessible = False
                 color = RED
@@ -259,20 +262,6 @@ class Game():
         self.blocked_decks= ["Nains de Omaghetar","Mauvais Reves","Necroman","Mahishasura","Guilde des Braves d'Edemas",
                              "Horde","Demon","Vikings","Chateau","Le Lac","Pirates des Mers Maudites","invocationscampagne",
                              "Reveil De La Roche","Chasseurs des Plaines Neigeuses","MagiePure","Voyageurs d'Outreplans"]
-#        self.blocked_creature=[]
-#        for i in self.blocked_decks :
-#            df=os.path.join("Decks",i.replace(" ","_")+".dek")
-#            try :
-#                with open(df,"r") as fil: # problem with python : I wanted to use "rb"
-#                    deck = eval(fil.read())
-#                    self.blocked_creature=self.blocked_creature+deck.keys()
-#            except :
-#                print "ERROR ",df," not found"
-         
-        # print glob.glob("*")
-
-        #self.steps = [None,self.modeSelection,self.matchSelection]
-        #self.initSecondCampaign()
 
     def initFirstCampaign(self):
         level1=Level()
@@ -626,6 +615,11 @@ class Game():
     def coutCartesMonstres(self):
         from deck_creation import getBlockedCreatures
         CoutCartesMonstres.run(getBlockedCreatures(self.blocked_decks))
+        
+        global all_cards
+        all_cards = readMonsters("CardFiles/all_monsters.sav")
+
+        
         pygame.init()
         global screen
 

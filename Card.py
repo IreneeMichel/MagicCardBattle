@@ -30,12 +30,13 @@ def readMonsters(filename) :
     with open(filename,"r") as filepickle :
         for m in filepickle :
             try :
-                c=evalCard(m)                
-                monsters[c.name]=c
-            except :
+                if len(m)>4 : # on saute les lignes vides
+                  c=evalCard(m)                
+                  monsters[c.name]=c
+            except e:
                 print ("in file ",filename)
                 print ("ERROR reading line :",m)
-                raise
+                raise e
     return monsters
 
 def evalCard(str1) : # fonctionne sur carte comme sur liste de cartes
@@ -194,12 +195,13 @@ class Card :
         if len(set(nb))!=len(nb) :
             showinfo("Not Allowed","You can't have twice the same bonus")
             return False
-        for b1,b2 in [("Insaisissable","Provocation"),("Insaisissable","Inciblable"),
+        for b1,b2 in [("Insaisissable","Provocation"),("Insaisissable","Inciblable"),("Errant","Incarnation"),
                       ("Camouflage","Provocation"),("Camouflage","ChaqueTour"),("NePeutPasAttaquer","ALaPlaceDeLAttaque"),
+                      ("NePeutPasAttaquer","NePeutPasAttaquerLesHeros"),("NePeutPasAttaquerLesHeros","ALaPlaceDeLAttaque"),
                     ("GardienDeVie","QuandIlEstBlesse"),("Charge","NePeutPasRisposter"),("Furie","ALaPlaceDeLAttaque"),
-                    ("NePeutPasRiposter","NePeutPasAttaquer"),("NePeutPasRiposter","CoutReduit"),
+                    ("NePeutPasRiposter","NePeutPasAttaquer"),("NePeutPasRiposter","CoutReduit"),("CriDeGuerre","Incarnation"),
                     ("Charge","CriDeGuerrre"),("Insaisissable","InsensibleALaMagie"),("Charge","Errant"),("CriDeGuerre","Errant"),
-                    ("Errant","RaleDAgonie"),("AttaqueADistance","AvecAttaque"),
+                    ("Errant","RaleDAgonie"),("AttaqueADistance","AvecAttaque"),("Errant","AuDebutDuProchainTour"),
                     ("BonusParEnnemi","Determine"),("QuandIlEstBlesse","Incassable"),("Souffrant","QuandIlEstBlesse") ] :
             if b1 in nb and b2 in nb :
                 showinfo("Not Allowed","You can't have this combination of powers: {0} and {1}".format(b1,b2))
@@ -211,7 +213,13 @@ class Card :
         return True
  
     def save(self,*args):
-
+        if (self.name in Card.blocked_creature) :
+            return
+        for b in self.bonus : # on veut que la plainte maudite soit en dernier
+            if b.__class__.__name__=="PlainteMaudite" :
+                self.bonus.remove(b)
+                self.bonus.append(b)
+                break
         image = self.createImage()
         
         print ("apres createImage")
@@ -328,7 +336,7 @@ class Card :
     def choosePhoto(self,*args) :
         from tkinter.filedialog import askopenfilename
         #Tk().withdraw() # we don't want a full GUI, so keep the root window from appearing
-        filename = askopenfilename(defaultextension=".gif",filetypes=[('PNG file','*.png'),('Jpg file','*.jpg'),('GIF file','*.gif')]) # show an "Open" dialog box and return the path to the selected file
+        filename = askopenfilename(defaultextension=".gif",filetypes=[ ("image",("*.jpg", "*.gif","*.png")),('PNG file','*.png'),('Jpg file','*.jpg'),('GIF file','*.gif')]) # show an "Open" dialog box and return the path to the selected file
         if filename:
             import os.path
             chem=os.path.dirname(os.path.realpath(__file__)).replace('\\','/')+'/'
@@ -679,14 +687,27 @@ class Card :
         self.content.set(self.name)
         self.content.trace("w", self.is_changed_as_invocation)
         l = [ m for m in Card.monster_list.keys() if (spells or all_monsters[m].pv>0) and not(m in Card.blocked_creature) 
-                  and (spells or not "PlainteMaudite" in all_monsters[m].constructor()) and not any([b.__class__.__name__=="Charge" for b in all_monsters[m].bonus]) ]
-        """
-        if self.parent.name in l:
-            l.remove(self.parent.name)
-        """
+                  and (spells or not "PlainteMaudite" in all_monsters[m].constructor())
+                   and not any([b.__class__.__name__=="Charge" for b in all_monsters[m].bonus])
+                   and not any([b.__class__.__name__=="Errant" for b in all_monsters[m].bonus])
+                   and not any([b.__class__.__name__=="Essentiel" for b in all_monsters[m].bonus])
+                   and not any([b.__class__.__name__=="Incarnation" for b in all_monsters[m].bonus])
+                   #and not any([b.__class__.__name__=="AuDebutDuProchainTour" for b in all_monsters[m].bonus])
+                   ]
         self.widget=OptionMenu(master,self.content,*l)
         return self.widget
-        
+ 
+    def init_as_card(self,master):
+        # monster widget in invocation widget        
+        #print "monster init_as_invocation"
+        self.content=StringVar()
+        self.content.set(self.name)
+        self.content.trace("w", self.is_changed_as_invocation)
+        l = [ m for m in Card.monster_list.keys() if  not(m in Card.blocked_creature)  ]
+        self.widget=OptionMenu(master,self.content,*l)
+        return self.widget
+ 
+       
     def is_changed_as_invocation(self,*args):
         print ("monster is_changed_as_invocation")
         if self.content.get()!= "Troll gris":

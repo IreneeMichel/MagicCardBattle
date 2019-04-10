@@ -68,7 +68,7 @@ class ParAllieBlesse(RelativeLevel):
     extension = " par allies blesses"
     
     def getLevel(self,origin):
-        return (len([c for c in origin.player.army if c.pv<c.max_pv])+[0,1][origin.player.pv<origin.player.max_pv])*self.level
+        return (len([c for c in origin.player.army if c.pv<c.max_pv]))*self.level
     
     def getCostMultiplier(self,spell):
         return 3.5*self.level

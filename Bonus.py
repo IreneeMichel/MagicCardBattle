@@ -80,11 +80,11 @@ class BonusMonstre :
         else :
             print ("BonusMonstre with no parent ?")
         self.card.refreshWidget()
-    def initWidget(self,master) :
+    def initWidget(self,master,forother=False) :
         self.content=StringVar()
         self.content.set(self.__class__.__name__)
         self.content.trace("w", self.isChanged)
-        self.widget=getBonusMenu(master,self.content)
+        self.widget=getBonusMenu(master,self.content,forother=forother)
         #name_wid.pack()
         return self.widget
     def getStars(self):
@@ -110,12 +110,12 @@ class BonusMonstreWithLevel(BonusMonstre) :
         print ("modified level",self.level)
         self.level=int(self.level_wid.get())
         self.card.getCost()
-    def initWidget(self,master) :
+    def initWidget(self,master,forother=False) :
         self.widget=PanedWindow(master,orient=HORIZONTAL)
         self.content=StringVar()
         self.content.set(self.__class__.__name__)
         self.content.trace("w", self.isChanged)
-        name_wid=getBonusMenu(master,self.content)
+        name_wid=getBonusMenu(master,self.content,forother=forother)
         self.widget.add(name_wid)
         v=StringVar()
         v.set(str(self.level))
@@ -146,12 +146,12 @@ class BonusMonstreWithTwoLevels(BonusMonstre):
         print ("modified level",self.level)
         self.level2=int(self.level_wid2.get())
         self.card.getCost()
-    def initWidget(self,master) :
+    def initWidget(self,master,forother=False) :
         self.widget=PanedWindow(master,orient=HORIZONTAL)
         self.content=StringVar()
         self.content.set(self.__class__.__name__)
         self.content.trace("w", self.isChanged)
-        name_wid=getBonusMenu(master,self.content)
+        name_wid=getBonusMenu(master,self.content,forother=forother)
         self.widget.add(name_wid)
         v=StringVar()
         a = StringVar()
@@ -174,28 +174,28 @@ class BonusMonstreGivingBonus(BonusMonstre) :
     isTrigger=False
     hasLevel=False
     hasTarget=False
-    def __init__(self,spell=PasDeBonus()) :
+    def __init__(self,spell=PasDeBonus(),restriction="") :
         self.spell=spell
         self.parent=None
-        self.restriction=""
+        self.restriction=restriction
         self.interest=self.spell.interest
     def constructor(self) :
-        return "CardPowers."+self.__class__.__name__+"("+self.spell.constructor()+")"
+        return "CardPowers."+self.__class__.__name__+"("+self.spell.constructor()+",restriction='"+self.restriction+"')"
     def getDescription(self):
         return re.sub(UP,' ',self.__class__.__name__)+' :\n'+self.spell.getDescription()
     def restrictionChanged(self,*args) :
         self.restriction=self.restrict.get()
-    def initWidget(self,master) :
+    def initWidget(self,master,forother=False) :
         self.spell.parent=self
         self.spell.card=self.card
         self.widget=PanedWindow(master,orient=HORIZONTAL)
         self.content=StringVar()
         self.content.set(self.__class__.__name__)
         self.content.trace("w", self.isChanged)
-        name_wid=getBonusMenu(self.widget,self.content)
+        name_wid=getBonusMenu(self.widget,self.content,forother=forother) # menu pour changer le BonusMonstreGivingBonus
         #name_wid.pack()
         self.widget.add(name_wid)
-        bonus_wid=self.spell.initWidget(self.widget)
+        bonus_wid=self.spell.initWidget(self.widget,forother=True) # menu pour le bonus given
         self.widget.add(bonus_wid)
         self.restrict=StringVar()
         self.restrict.set(self.restriction)
@@ -221,14 +221,14 @@ class Trigger(BonusMonstre) :
         return re.sub(UP,' ',self.__class__.__name__)+' :\n'+self.spell.getDescription()
     def getInlineDescription(self) :
         return re.sub(UP,' ',self.__class__.__name__)+' :'+self.spell.getInlineDescription()
-    def initWidget(self,master) :
+    def initWidget(self,master,forother=False) :
         self.spell.card=self.card
         self.spell.parent=self
         self.widget=PanedWindow(master,orient=HORIZONTAL)
         self.content=StringVar()
         self.content.set(self.__class__.__name__)
         self.content.trace("w", self.isChanged)
-        name_wid=getBonusMenu(self.widget,self.content)
+        name_wid=getBonusMenu(self.widget,self.content,forother=forother)
         #name_wid.pack()
         self.widget.add(name_wid)
         spell_wid=self.spell.initWidget(self.widget)
@@ -239,15 +239,27 @@ class Trigger(BonusMonstre) :
         return self.spell.getStars()
 
 
-def getBonusMenu(master,variable) :
+def getBonusMenu(master,variable,forother=False) :
     import CardPowers
     #print dir(CardPowers)
     class_content=[p for p in dir(CardPowers) if  hasattr(getattr(CardPowers,p),'getCost') and ('Effect' not in p)]
     list_bonus=[p for p in class_content if issubclass(getattr(CardPowers,p),BonusMonstre)
        and not getattr(CardPowers,p).isTrigger ]
+    if forother :
+        list_bonus.remove("Incarnation")
+        list_bonus.remove("NePeutPasAttaquer")
+        list_bonus.remove("Errant")
+        list_bonus.remove("Charge")
+        list_bonus.remove("CoutReduit")
+        list_bonus.remove("CoutReduitGraduel")
+
     nbPossibleBonus=len(list_bonus)
     list_bonus+=[p for p in class_content if issubclass(getattr(CardPowers,p),BonusMonstre)
        and getattr(CardPowers,p).isTrigger ] # liste comme texte pour menus
+    if forother :
+        list_bonus.remove("ALaPlaceDeLAttaque")
+        list_bonus.remove("CriDeGuerre")
+
     #print list_bonus
     bm = OptionMenu(master,variable,*list_bonus)
     bm["menu"].insert_separator(nbPossibleBonus)
@@ -266,19 +278,23 @@ class PlainteMaudite(Trigger) :
         return 0.
 
     def getStars(self):
-        if self.spell.getCost()+3*self.spell.getStars()>=5:
-            if self.spell.hasLevel :
-                if self.spell.level.level>=1 :
-                    self.spell.level.level-=1
-                    if self.spell.getCost()+3*self.spell.getStars()<5:
-                        self.spell.level.level+=1
-                else :
-                    if hasattr(self.spell,"level2") :
-                        self.spell.level2.level-=1
-                        if self.spell.getCost()+3*self.spell.getStars()<5:
-                            self.spell.level2.level+=1                    
+        cout=self.spell.getCost()
+        if hasattr(self.spell,"level") and self.spell.level.__class__.__name__ != "NbFixe" :
+            #print("level non fixe, effet reduit")
+            cout*=0.7
+        if cout+3*self.spell.getStars()>=5:
+#            if self.spell.hasLevel :
+#                if self.spell.level.level>=1 :
+#                    self.spell.level.level-=1
+#                    if self.spell.getCost()+3*self.spell.getStars()<5:
+#                        self.spell.level.level+=1
+#                else :
+#                    if hasattr(self.spell,"level2") :
+#                        self.spell.level2.level-=1
+#                        if self.spell.getCost()+3*self.spell.getStars()<5:
+#                            self.spell.level2.level+=1                    
             return -2
-        elif self.spell.getCost()+3*self.spell.getStars()>=2:
+        elif cout+3*self.spell.getStars()>=2:
             return -1
         else:
             return 0

@@ -14,7 +14,7 @@ wound_img.set_colorkey((0,0,0))
 class Creature() :
     def __init__(self,card,player,is_invocation=False,origin=None,bonus=False,damages=0,triggerPlayingEffect=False,param={}) :
         #if hasattr(player,"verbose") and player.verbose>3 :
-        print( "      Creature __init__ ",card.name," from ",player.name)
+        #print( "      Creature __init__ ",self,card.name," from ",player.name)
         # origin is usually a cardInHand
         self.card=card
         if param : # sert pour le loadgame, beaucoup seront reecrases ensuite
@@ -43,7 +43,7 @@ class Creature() :
                     self.addMark(b.getInlineDescription(),typ="power",value=0)
         for b in self.bonus:
             b.owner=self
-   
+        self.setValue()   
         self.ready=False
         card.costint = int(card.getCost())
         card.starcost = card.getStars()
@@ -56,7 +56,7 @@ class Creature() :
             # it is a spell
             #if not(self.bonus):
             #    print "creature",self,self.name,"de",self.player.name," bonus=",self.bonus
-            print('init : it is a spell')
+            #print('init : it is a spell')
             for m in player.army :
                 if m.max_pv>0 :
                     for b in m.bonus :
@@ -103,7 +103,7 @@ class Creature() :
 #        if self.name==other.name :
 #            print (self.pv  == other.pv) , (self.att == other.att) , all([p1.__class__==p2.__class__ for p1,p2 in zip(self.bonus,other.bonus)]) , (self.ready == other.ready) , (self.player == other.player)
 #            raise
-        return (self.pv  == other.pv) and (self.att == other.att) and all([p1.__class__==p2.__class__ for p1,p2 in zip(self.bonus,other.bonus)]) and (self.ready == other.ready) and (self.player == other.player)        
+        return isinstance(other,Creature) and (self.pv  == other.pv) and (self.att == other.att) and all([p1.__class__==p2.__class__ for p1,p2 in zip(self.bonus,other.bonus)]) and (self.ready == other.ready) and (self.player == other.player)        
     def beginTurn(self) :
         #if isinstance(self,AnimatedCreature) : print "normal begin turn de ",self.name
         self.ready=True
@@ -170,6 +170,7 @@ class Creature() :
         if self.pv <1 and self.pv+damage>0 :
             #"print "                   die due to damage"
             self.die()
+        self.setValue()
 #    def sufferDamageAnimation(self,damage) :
 #         pass
     def updateImage(self) :
@@ -194,7 +195,7 @@ class Creature() :
 #        player_str = "self.player"+str(1+[self.player.game.player1,self.player.game.player2].index(self.player))
 #        return "Creature("+player_str
     
-    def getValue(self):
+    def setValue(self):
         bonusspecialordi=0
         for p in self.bonus :
             if "CarteImportante" in p.__class__.__name__ and hasattr(self,"playedby") :
@@ -213,9 +214,11 @@ class Creature() :
 #                if abs(p.getCost(self))*p.interest < 0. :
 #                    print p.constructor()," is negative "
             #print "cost",cost,2.5*sum([p.getStars() for p in self.bonus]),sum([m[0] for m in self.marks.values()])
-            return cost+2.5*sum([p.getStars() for p in self.bonus])+sum([m[0] for m in self.marks.values()])+bonusspecialordi
+            self.value= cost+2.5*sum([p.getStars() for p in self.bonus])+sum([m[0] for m in self.marks.values()])+bonusspecialordi
         else :
-            return bonusspecialordi
+            self.value= bonusspecialordi
+        if any([(p.__class__.__name__=="Incarnation") for p in self.bonus]) :
+            self.value+=self.pv*3.-20.
     
     def die(self):
         if hasattr(self.player,"nv") :
@@ -353,7 +356,8 @@ class AnimatedCreature(Sprite,Creature) :
             destination=[800,450]
             phase0 = (destination,4, self.size)
             phase1 = (destination,5, (272, 400))
-            Animation(self,[phase0,phase1])
+            phase2 = (destination,5, (272, 400))
+            Animation(self,[phase0,phase1,phase2])
         self.game.effect_list.append([19,self.player.id,"orderArmy",[]])
 
         #print "init animated creature done"

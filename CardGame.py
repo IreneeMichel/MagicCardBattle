@@ -36,6 +36,7 @@ pygame.mixer.init()
 class Game():
     def __init__(self):
         pygame.init()
+        import CardPowers # utile pour les effets dans effect_list
         #self.to_draw = pygame.sprite.Group()
         self.clock = pygame.time.Clock()
         try :
@@ -396,7 +397,6 @@ class Game():
     def update(self) :
         #print "game update"
         #space = False
-        import CardPowers # utile pour les effets dans effect_list
         self.screen.fill(BROWN)
         self.screen.blit(self.bg,(0,0))
         drawing=OrderedUpdates()
@@ -752,6 +752,8 @@ class SimulationGame(Game):
             self.player = self.player1
         if self.player.pv>0 :
             self.player.beginOfTurn()
+    def update(self) :
+        pass
     def play(self,n) :
         # n number of actions seen
         while not self.end :
@@ -834,6 +836,7 @@ class NetGame(Game) :
                 self.firstplayer=int(p)
             except :
                 print( "error concerning first player, got ",p)
+        self.remains=""
             #self.soc.close()                     # Close the socket when done
     def initialize(self) :
         if self.firstplayer==1 : # player1 doit etre le local
@@ -854,12 +857,19 @@ class NetGame(Game) :
         if self.local==self.host :
             jet=sample(list(range(intrange)),n)
             print( "send",jet)
-            self.soc.send(" ".join(map(str,jet)).encode('utf-8'))
+            self.soc.send((" ".join(map(str,jet))+"\n" ).encode('utf-8'))
         else :
             print( "waiting ",n," random number in range",intrange)
-            p=self.soc.recv(1024).decode('utf-8')
-            print( "recv ",p)
-            jet=map(int,p.strip().split())
+            if self.remains  :
+                p=self.remains
+                self.remains=""
+            else :
+                p=self.soc.recv(1024).decode('utf-8')
+                print( "recv ",p)
+            p=p.strip()
+            if "\n" in p :
+                self.remains,p = p.split("\n",1)
+            jet=list(map(int,p.strip().split()))
             print( "got",jet)
         return jet
     

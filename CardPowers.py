@@ -12,6 +12,10 @@ from functools import partial
 
 import re
 
+printed_lines = ["None"]
+def fprint(*args):
+    printed_lines[0] = " ".join([str(a) for a in args])
+
 class PasDEffet(PasDEffet):
     pass
 
@@ -42,26 +46,57 @@ class ConfereBonus(ConfereBonus):
 class CoutReduit(CoutReduit):
     pass
 
-class EssentielEffect(BonusMonstre):
+#class CoutReduitParSituation(CoutReduitParSituation):
+#    pass
+
+class CoutReduitGraduel(BonusMonstreWithLevel) :
+    interest=0    
+    is_cost_alterator = True   
+#    def constructor(self) :
+#        #print "level is ",self.level
+#        return "cardPowers."+self.__class__.__name__+"("+str(self.level)+")"
+    def getCost(self,monster) :
+        return self.level * (-2.0)
+    def getStars(self):
+        return self.level
+
+    def whenPlayed(self,monster) : # ameliore l evaluation par l ordi de la valeur de la creature
+        monster.bonus.remove(self)
+        monster.starcost-=self.level
+
+class Incarnation(BonusMonstre):
     interest=-1
     def death(self,monster):
-        self.owner.game.player1.pv = 0
-        self.owner.game.player1.sufferDamage(0)
+        self.owner.player.pv = 0
+        self.owner.player.sufferDamage(0)
         
     def removed(self):
         pass
-    
     def afterInvocation(self,monster):
-        pass
-    
+        for m in monster.player.army :
+            if m is monster :
+                continue
+            if any([(b.__class__.__name__=="Incarnation") for b in m.bonus]) :
+                for b in m.bonus :
+                    if b.__class__.__name__=="Incarnation" :
+                        m.bonus.remove(b)
+                        m.die()
+        monster.player.game.effect_list.append([13,monster.player.id,"endTurn",[]])
     def getDescription(self):
-        return "%"
+        return "Incarnation"
     
     def getInlineDescription(self):
-        return "%"
+        return "Incarnation"
     
+    def getStars(self):
+        return -1   
     def getCost(self,monster):
-        return 0
+        return -0.2-monster.pv*0.3-monster.att*0.1
+
+class EssentielEffect(Incarnation) :
+    def death(self,monster):
+        self.owner.game.player1.pv = 0
+        self.owner.game.player1.sufferDamage(0)
 
 class AuChoix(Multiplier) :
     # les spell n ont pas de owner, sinon cela pose pb dans les creaturecopy
@@ -69,7 +104,7 @@ class AuChoix(Multiplier) :
         from collections import Counter
         lesmots=Counter(re.compile("CardPowers[.][a-zA-Z]+").findall(self.constructor()))
         add=sum([i*(i-1)/2. for i in lesmots.values()])
-        return add*0.1+0.2+max(self.spell1.spell.getCost(),self.spell2.spell.getCost())+min(self.spell1.spell.getCost(),self.spell2.spell.getCost())*0.2
+        return add*0.1+0.25+max(self.spell1.spell.getCost(),self.spell2.spell.getCost())+min(self.spell1.spell.getCost(),self.spell2.spell.getCost())*0.2
     
     def getStars(self):
         return max([self.spell1.spell.getStars(),self.spell2.spell.getStars()])    
@@ -81,7 +116,7 @@ class AuChoix(Multiplier) :
         return 'Choix :\n '+ self.spell1.spell.getDescription()+ "\n ou \n" + self.spell2.spell.getDescription()
 
     def effect(self,origin,target):
-        print("au choix : effect de auchoix sur ",target.name)
+        #print("au choix : effect de auchoix sur ",target.name)
 #        if hasattr(origin.player,"nv") :
 #            print " "*4*(2-origin.player.nv)+"au choix : effect from",origin.name,origin.id," sur ",target.name,target.id
         if target.name=="choix1" or target.name=="choix2" :
@@ -108,16 +143,16 @@ class AuChoix(Multiplier) :
 
             #self.choix1.kill()
             #self.choix2.kill()
-        print("fin au choix : effect ")
+        #→print("fin au choix : effect ")
         #self.spell2.spell.effect(target)
     def getTarget(self,origin):
         #if hasattr(origin.player,"nv") :print " "*4*(2-origin.player.nv)+"au choix : getTarget from",origin.name,origin.id," de ",origin.player.name,origin.player
-        if not origin.player is origin.game.player :
-            print( "pas de choix au tour adverse")
-            print("origin", origin.name,origin.id)
-            print("de", origin.player,"!=",origin.game.player)
-            print( origin.player.id,"!=",origin.game.player.id)
-            return None
+#        if not origin.player is origin.game.player :
+#            print( "pas de choix au tour adverse")
+#            print("origin", origin.name,origin.id)
+#            print("de", origin.player,"!=",origin.game.player)
+#            print( origin.player.id,"!=",origin.game.player.id)
+#            return None
         if not any([m.name=="choix1" or m.name=="choix2" for m in origin.player.army]) :
             #print "creation du choix , nest pas dans",[m.name for m in origin.player.army],'de',origin.player
             import pygame
@@ -180,7 +215,7 @@ class DeuxEffets(Multiplier):
         from collections import Counter
         lesmots=Counter(re.compile("CardPowers[.][a-zA-Z]+").findall(self.constructor()))
         add=sum([i*(i-1)/2. for i in lesmots.values()])
-        return 0.1+0.2+abs(self.spell1.spell.getCost()+self.spell2.spell.getCost())
+        return 0.05*add+0.2+abs(self.spell1.spell.getCost()+self.spell2.spell.getCost())
     def getStars(self):
 #        if "DegatSurSonHeros" in self.spell1.spell.constructor() and "DegatSurSonHeros" in self.spell2.spell.constructor() :
 #            return self.spell1.spell.getStars()+self.spell2.spell.getStars()+1
@@ -215,7 +250,7 @@ class DeuxEffetsMemeCible(DeuxEffets):
 class Provocation(BonusMonstre) :
     interest=1
     def getCost(self,monster) :
-        return 0.4+monster.att*0.08+monster.pv*0.08       
+        return 0.35+monster.att*0.08+monster.pv*0.08       
     def afterInvocation(self,monster) :
         monster.addMark("provocation",pos="center",size=(150,220),typ="external")
     def modifyDefenseChoice(self,targets) :
@@ -249,7 +284,7 @@ class Determine(BonusMonstre) :
 class Inciblable(BonusMonstre) :
     interest=1
     def getCost(self,monster) :
-        return 0.5+monster.att/7.+monster.pv/7.
+        return 0.45+monster.att/7.+monster.pv/7.
     def getStars(self):
         return 1
     def modifySpellTargetChoice(self,targets) :
@@ -262,13 +297,15 @@ class Inciblable(BonusMonstre) :
 class InsensibleALaMagie(BonusMonstre) :
     interest=1
     def getCost(self,monster) :
-        return 0.6+monster.att/4.+monster.pv/4.
+        return 0.6+monster.att/4.+monster.pv*0.2
     def getStars(self):
         return 1
     def modifySpellTarget(self,targets) :
         if self.owner in targets and not any([(b.__class__.__name__=="Insaisissable") for b in self.owner.bonus]) :
             targets.remove(self.owner)
-            #print "self is removed from targets"
+            if "imu" not in self.owner.player.name : print (self.owner.name,"self is removed from targets")
+        else :
+            if "imu" not in self.owner.player.name : print (self.owner.name,"InsensibleALaMagie but does not modify targets")
         return targets
     def modifySpellTargetChoice(self,targets) :
         if self.owner in targets and not any([(b.__class__.__name__=="Insaisissable") for b in self.owner.bonus]) and len(targets)>1 :
@@ -279,10 +316,14 @@ class InsensibleALaMagie(BonusMonstre) :
 class AbsorbeurDeMagie(BonusMonstre) :
     interest=1    
     def getCost(self,monster) :
+        if  any([(b.__class__.__name__=="InsensibleALaMagie") for b in monster.bonus]) :
+            #print len(targets),
+            return 2.1+monster.att/7.+monster.pv/7.
         return 1.1+monster.att/7.+monster.pv/7.
     def getStars(self):
         return 0
     def modifySpellTarget(self,targets) :
+        fprint("AbsorbeurDeMagie modifySpellTarget")
         lita=[m for m in targets]
         for m in lita :
             if m.name!="choix1" and m.name!="choix2" and not any([(b.__class__.__name__=="AbsorbeurDeMagie") for b in m.bonus]) :
@@ -290,6 +331,7 @@ class AbsorbeurDeMagie(BonusMonstre) :
         #print "AbsorbeurDeMagie:nb affected targets",len(targets),(targets[0] is self.owner)
         return targets
     def modifySpellTargetChoice(self,targets) :
+        fprint("AbsorbeurDeMagie modifySpellTargetChoice")
         #print "AbsorbeurDeMagie:poss are initialy",len(targets)
         for m in reversed(targets) :
             if not any([(b.__class__.__name__=="AbsorbeurDeMagie") for b in m.bonus]) :
@@ -328,7 +370,7 @@ class Errant(BonusMonstre):
     def getCost(self,monster) :
         powercosts = [abs(m.getCost(monster))*((m.interest>0)*1.5+(m.interest==0)*1.-0.5) for m in monster.bonus if not m.is_cost_alterator and not isinstance(m,Errant)]
         self.power = 0.2*sum([abs(p) for p in powercosts])+0.15*(monster.pv + monster.att)- int(0.5*sum([m.getStars() for m in monster.bonus if not isinstance(m,Errant)])+0.5)
-        return 1-0.5*sum(powercosts)-0.35*(monster.pv + monster.att)
+        return 1.7-0.6*sum(powercosts)-0.35*monster.pv -0.2*monster.att
     
     def getDescription(self):
         return "Change d'armee a la fin de chaque tour"
@@ -336,7 +378,7 @@ class Errant(BonusMonstre):
 class Insaisissable(BonusMonstre) :
     interest=1    
     def getCost(self,monster) :
-        co=[m.getCost(monster)+(m.getStars()>0)*1.2 for m in monster.bonus if not m.is_cost_alterator and not  isinstance(m,Insaisissable)]
+        co=[m.getCost(monster)*0.9+(m.getStars()>0)*1.2 for m in monster.bonus if not m.is_cost_alterator and not m.__class__.__name__=="Insaisissable"]
         co=co+[monster.att*0.5,monster.pv*0.5]
         co=[abs(c) for c in co]
         return sum(co)*0.2
@@ -378,7 +420,7 @@ class AttaqueADistance(BonusMonstre) :
         return Sprite(sprite,"gameAnimationImages/stone.png",[50,40]) 
     def getCost(self,monster) :
         charge=sum([0.2 for m in monster.bonus if not isinstance(m,Charge)])
-        return monster.att * (0.4+charge) +0.1
+        return monster.att * (0.35+charge) +0.1
     def getStars(self):
         return 1
         
@@ -386,7 +428,7 @@ class AttaqueADistance(BonusMonstre) :
 class Furie(BonusMonstre):
     interest=1    
     def getCost(self,monster) :
-        return 0.2+max(1.,monster.att)/6. + monster.pv/8.
+        return 0.2+max(1.,monster.att)/6. + monster.pv*0.1
     def getStars(self):
         return 1
     def beforeCombat(self,monster,target) :
@@ -395,7 +437,7 @@ class Furie(BonusMonstre):
             monster.ready=True
     def afterInvocation(self,monster) :
         if not hasattr(monster,"n_attack") :
-            monster.n_attack = 0
+            monster.n_attack = 1
     def endturn(self,monster):
         monster.n_attack = 0
 
@@ -471,18 +513,28 @@ class NePeutPasAttaquer(BonusMonstre) :
         else :
             return []
 
- 
+class NePeutPasAttaquerLesHeros(BonusMonstre) :
+    interest=-0.4  # avec interst=-1, l ordi tape ses monstres et donne +1 attaque a ennemi   
+    def getCost(self,monster) :                                                                   
+        return -monster.att*0.1-0.05
+    def modifyAttackChoice(self,targets):
+        if self.owner.player.adv in targets  :
+            targets.remove(self.owner.player.adv)
+        return targets
+    def getDescription(self):
+        return "Ne peut pas attaquer\n les heros."
+
 class NePeutPasRiposter(BonusMonstre) :
     interest=-1    
     def getCost(self,monster) :                                                                          
         return -monster.att*0.2+0.1
     def beforeCombat(self,adv1,adv2) :
         if "simu" not in self.owner.player.name :
-            print( "%%%% NePeutPasRiposter beforeCombat ",adv1.name,"attaque",adv2.name)
+            fprint( "%%%% NePeutPasRiposter beforeCombat ",adv1.name,"attaque",adv2.name)
         #print [(b.__class__.__name__!="Initiative") for b in other.bonus],[(b.__class__.__name__!="AttaqueADistance") for b in adv1.bonus]
         if adv2 is self.owner :
             if "simu" not in self.owner.player.name :
-                print( self.owner.name," N Peut Pas Riposter  avec att=",self.owner.att)
+                fprint( self.owner.name," N Peut Pas Riposter  avec att=",self.owner.att)
             self.owner.oldatt=self.owner.att
             self.owner.att=0
     def afterCombat(self,owner,adv) :
@@ -562,7 +614,7 @@ class CoutDesMonstresReduit(BonusMonstreWithLevel) :
 class LienDeVie(BonusMonstreWithLevel) :
     interest=1    
     def getCost(self,monster) :
-        return 0.1 + 0.9*self.level-monster.pv*0.1+max(0.,self.level+1-monster.pv)*0.2
+        return 0.1 + 0.8*self.level-monster.pv*0.1+max(0.,self.level+1-monster.pv)*0.2
     def getStars(self):
             return 1
     def modifyTakenDamage(self,damage):
@@ -572,6 +624,7 @@ class LienDeVie(BonusMonstreWithLevel) :
         else:
             self.owner.player.sufferDamage(self.level)
             damage-=self.level
+        self.owner.player.updateImage()
         return damage
     def removed(self) :
         self.owner.sufferDamage=MethodType(Creature.sufferDamage,self.owner)   
@@ -580,7 +633,7 @@ class Incassable(BonusMonstre):
     interest=1    
     def getCost(self,monster) :
         comp=sum([1 for b in monster.bonus if isinstance(b,Trigger)])
-        return 0.5 + comp*(0.1*(1+monster.pv))+ (monster.att+0.5)*(monster.pv-0.85)*0.2
+        return 0.4 + comp*(0.1*(1+monster.pv))+ (monster.att+0.5)*(monster.pv-0.85)*0.2
     def getStars(self):
         return 1
     def modifyTakenDamage(self,damage):
@@ -604,7 +657,7 @@ class Incassable(BonusMonstre):
 class GardienDeVie(BonusMonstre) :
     interest=1    
     def getCost(self,monster) :
-        return 0.9
+        return 0.8
     def modifyPlayerSuffer(self,player,damage):
         if damage==0 :
             return 0
@@ -614,7 +667,7 @@ class GardienDeVie(BonusMonstre) :
 class DonneBonus(BonusMonstreWithTwoLevels) :
     interest=0.2 # si le bonus ne se voit pas sur le terrain, alors peu d interret    
     def getCost(self,monster) :
-        return self.level2*1.3 + self.level*1.6 + max(0.,(self.level-self.level2)*0.2) + monster.pv/8.  -0.3
+        return self.level2*1.2 + self.level*1.6 + max(0.,(self.level-self.level2)*0.2) + monster.pv/8.  -0.3
     def getDescription(self):
         return "Donne a tous les allies +"+str(self.level)+"/+"+str(self.level2)
     def afterInvocation(self,creature):
@@ -670,7 +723,7 @@ class BonusParAllies(BonusMonstreWithTwoLevels) :
                 plus+=0.5
             if isinstance(b,Initiative) :
                 plus+=0.4
-        return (self.level*2.1  + self.level2*1.8 + max(0.,self.level-self.level2)*0.3)*(1.+plus)
+        return (self.level*2.1  + self.level2*1.7 + max(0.,self.level-self.level2)*0.3)*(1.+plus)
     def getStars(self):
         return 1
     def getDescription(self):
@@ -728,7 +781,7 @@ class BonusParEnnemi(BonusMonstreWithTwoLevels) :
                 plus+=0.5
             if isinstance(b,Initiative) :
                 plus+=0.4
-        return (self.level*1.9  + self.level2*1.6 + max(0.,self.level-self.level2)*0.2)*(1.+plus)
+        return (self.level*1.9  + self.level2*1.5 + max(0.,self.level-self.level2)*0.2)*(1.+plus)
     def getStars(self):
         return 1
     def getDescription(self):
@@ -778,7 +831,7 @@ class BonusParEnnemi(BonusMonstreWithTwoLevels) :
 class DonneArmureAuHero(BonusMonstreWithLevel) :
     interest=1    
     def getCost(self,monster) :
-        return 0.2+self.level*0.8 + monster.pv/12. + monster.att/12.
+        return 0.2+self.level*0.7 + monster.pv/12. 
     def getDescription(self):
         return "Donne {0} point".format(self.level)+"s"*(self.level>1)+" d'armure au hero"
     def modifyPlayerSuffer(self,player,damage):
@@ -796,8 +849,12 @@ class DonneArmureAuHero(BonusMonstreWithLevel) :
 class DonneCapacitesAuxAllies(BonusMonstreGivingBonus) :
     def getCost(self,monster) :
         from Card import troll
+#        if self.spell.__class__.__name__=="NePeutPasAttaquer" or self.spell.__class__.__name__=="ALaPlaceDeLAttaque" :
+#            return max(20,self.spell.getCost(troll))
+#        if self.spell.__class__.__name__=="Incarnation"  :
+#            return 100
         self.interest=self.spell.interest
-        return max(0.35-self.spell.getCost(troll)*1.4,self.spell.getCost(troll)*(1.+0.4*(self.interest<0.)))*3.2 + 0.2
+        return max(0.35-self.spell.getCost(troll)*1.4,self.spell.getCost(troll)*(1.+0.4*(self.interest<0.)))*3.1 + 0.2
     def getStars(self):
         return self.spell.getStars() + 1
     def getDescription(self):
@@ -847,7 +904,7 @@ class CriDeGuerre(Trigger) :
             return 0.3+self.spell.getCost()
     def whenPlayed(self,creature):
         if not "simu" in creature.player.name :
-            print( "creature",creature.name," crideguerre ",self.spell.constructor())
+            fprint( "creature",creature.name," crideguerre ",self.spell.constructor())
         #else :
              #print "dans simulation  : creature",creature.name," crideguerre ",self.spell.constructor()           
         creature.player.launch(creature,self.spell)
@@ -858,11 +915,16 @@ class CriDeGuerre(Trigger) :
 class AuDebutDuProchainTour(Trigger) :
     #interest= beaucoup
     def getCost(self,monster) :
-        return self.spell.getCost()*(0.3+min([0.4,monster.pv/40.0]))
+        comp=sum([1 for b in monster.bonus if isinstance(b,Camouflage)])
+        return self.spell.getCost()*(0.65+comp*0.2)
+        
+    def endturn(self,creature) :
+        creature.attente_faite=True
         
     def beginTurn(self,creature):
-        if not "simu" in creature.player.name :
-            print ("creature",creature.name," begin turn ",self.spell.constructor())
+        if not hasattr(creature,"attente_faite") :
+            return
+        delattr(creature,"attente_faite")
         #else :
              #print "dans simulation  : creature",creature.name," crideguerre ",self.spell.constructor()           
         creature.player.launch(creature,self.spell)
@@ -872,20 +934,22 @@ class AuDebutDuProchainTour(Trigger) :
 
 class ChaqueTour(Trigger) :
     def getCost(self,monster) :
-        if ".AuChoix" in self.spell.constructor() :
-            print( "il y a un pb avec un AuChoix dans ChaqueTour or le spell est ",self.spell.constructor())
-            return 99
+#        if ".AuChoix" in self.spell.constructor() :
+#            fprint( "il y a un pb avec un AuChoix dans ChaqueTour or le spell est ",self.spell.constructor())
+#            return 99
         self.interest=self.spell.getValue()
         return abs(self.spell.getCost()*1.4)-0.3+self.spell.getStars()*0.2
     def getStars(self):
         return 1 + self.spell.getStars()
     def endturn(self,creature) :
-        creature.game.effect_list.append([1,creature.player.id,"launch",[creature.id,self.spell]])
+        if hasattr(self.owner,"tour2") or  (not any([(b.__class__.__name__=="Errant") for b in creature.bonus]) ):
+            creature.game.effect_list.append([1,creature.player.id,"launch",[creature.id,self.spell]])
+        self.owner.tour2=True
 
 class Souffrant(BonusMonstre):
     interest=-1    
     def getCost(self,monster):
-        return -0.1-0.05*monster.att
+        return -0.1-0.1*monster.att
     def getStars(self):
         return 0
     def afterInvocation(self,monster):
@@ -918,9 +982,9 @@ class ALaPlaceDeLAttaque(Trigger):
         comp=sum([1 for b in monster.bonus if isinstance(b,Charge) or isinstance(b,Furie)])
         self.interest=[-1,0,1][(self.spell.getCost()>monster.att/3.)+self.spell.positive]
         if self.spell.getValue()>0 :
-            return self.spell.getCost()*1.5*(1.+comp*0.3)+0.4-0.2*monster.att
+            return (self.spell.getCost()+self.spell.getStars()*0.2)*1.2*(1.+comp*0.4)+0.4-0.2*monster.att
         else :
-            return self.spell.getCost()*1.5*(1.+comp*0.3)+0.8
+            return (self.spell.getCost()+self.spell.getStars()*0.2)*1.2*(1.+comp*0.4)+0.8
     def getStars(self):
         return self.spell.getStars()
     def beforeCombat(self,owner,target):
@@ -945,14 +1009,18 @@ class QuandIlTue(Trigger):
     def getStars(self):
         return self.spell.getStars()
     def afterInvocation(self,creature):
-        self.old_att = FunctionType(creature.attack.__code__,globals(),closure=creature.combatSequence.__closure__)
+        self.owner.old_att = FunctionType(creature.attack.__code__,globals(),closure=creature.attack.__closure__)
         def new_att(oneself,target):
-            MethodType(self.old_att,oneself)(target)
+            MethodType(self.owner.old_att,oneself)(target)
             if hasattr(target,"is_dead") and target.is_dead and not (hasattr(target,"is_invocation") and target.is_invocation and target.player==self.owner) :
             	oneself.player.launch(oneself,self.spell)
         creature.attack = MethodType(new_att,creature)
+        print("creature",creature,self.owner," has old_att")
     def removed(self) :
-        self.owner.attack = MethodType(self.old_att,self.owner)
+        if not hasattr(self.owner,"old_att") :
+            print("owner ",self.owner,self.owner.name, " has no old attack due to QuandIlTue removed")
+            return
+        self.owner.attack = MethodType(self.owner.old_att,self.owner)
         
 class QuandIlBlesse(Trigger):
     def getCost(self,monster) :
@@ -976,15 +1044,13 @@ class QuandIlBlesse(Trigger):
         if self.previouspv>adv.pv :
             self.owner.player.launch(creature,self.spell)
         else :
-            print( " pas de degat vu, pas d effet : previous=",self.previouspv,">",adv.pv)
+            fprint( " pas de degat vu, pas d effet : previous=",self.previouspv,">",adv.pv)
         def getTarget(oneself,crea) :
             return  [crea.attacked_target]
         from Target import UneCibleAuChoix
         if isinstance(self.spell.target,UneCibleAuChoix) :
             self.spell.getTarget=MethodType(getTarget,self.spell)
-#        creature.combatSequence = MethodType(new_att,creature)
-#    def removed(self) :
-#        self.owner.attack = MethodType(self.old_att,self.owner)
+
 class QuandUnAllieEstTue(Trigger):
     def beginTurn(self,monster) :
         self.owner.deadThisTurn=0
@@ -1000,8 +1066,8 @@ class QuandUnAllieEstTue(Trigger):
                 self.owner.deadThisTurn+=1
             else :
                 self.owner.deadThisTurn=1
-            print("other death")
-            self.owner.player.launch(self.owner,self.spell)
+            #print("other death")
+            self.owner.player.game.effect_list.append([1,self.owner.player.id,"launch",[self.owner.id,self.spell]])
 
 
 #class QuandUnAllieEstBlesse(Trigger):
@@ -1032,7 +1098,8 @@ class QuandIlEstBlesse(Trigger):
                     self.owner.damageThisTurn+=1
                 else :
                     self.owner.damageThisTurn=1
-                self.owner.player.launch(self.owner,self.spell)
+                self.owner.player.game.effect_list.append([1,self.owner.player.id,"launch",[self.owner.id,self.spell]])
+
         return damage
     def removed(self) :
         self.owner.sufferDamage = MethodType(Creature.sufferDamage,self.owner)
@@ -1043,13 +1110,13 @@ class QuandLAdvLanceUnSort(Trigger):
     def getCost(self,monster) :
         self.interest=self.spell.getValue()
         fac=1.+(self.spell.getValue()<0)*1.2
-        return abs(0.2 + self.spell.getCost()*0.6*fac)-0.2+self.spell.getStars()*0.2
+        return abs(0.2 + self.spell.getCost()*0.7*fac)-0.5+self.spell.getStars()*0.2
     def getStars(self):
         return 1 + self.spell.getStars()
     def getDescription(self):
         return "Chaque fois que l ennemi lance un sort: \n"+self.spell.getDescription()
     def otherSpellLaunched(self,one_spell):
-        print('declanchement trig otherSpellLaunched')
+        fprint('declanchement trig otherSpellLaunched')
         if  ((not hasattr(self.owner,"otherSpellThisTurn")) or self.owner.otherSpellThisTurn<4) :
             self.owner.player.game.effect_list.append([1,self.owner.player.id,"launch",[self.owner.id,self.spell]])
             if hasattr(self.owner,"otherSpellThisTurn") :
@@ -1063,7 +1130,7 @@ class QuandVousLancezUnSort(Trigger):
         self.owner.spellThisTurn=0
     def getCost(self,monster) :
         self.interest=self.spell.getValue()
-        return abs(0.2 + self.spell.getCost()*1.2)-0.2+self.spell.getStars()*0.4
+        return abs(0.2 + self.spell.getCost()*1.4)-0.2+self.spell.getStars()*0.6
     def getStars(self):
         return 1 + self.spell.getStars()
     def getDescription(self):
@@ -1084,8 +1151,8 @@ class QuandLAdvInvoqueUnMonstre(Trigger):
         self.owner.invocThisTurn=0
     def getCost(self,monster) :
         self.interest=self.spell.getValue()
-        fac=1.+(self.spell.getValue()<0)*1.
-        return abs(0.4 + self.spell.getCost()*fac)-0.2+self.spell.getStars()*0.2
+        fac=1.1+(self.spell.getValue()<0)*1.
+        return abs(0.4 + self.spell.getCost()*fac)-0.6+self.spell.getStars()*0.2
     def getStars(self):
         return 1 + self.spell.getStars()
     def getDescription(self):
@@ -1097,7 +1164,7 @@ class QuandLAdvInvoqueUnMonstre(Trigger):
                 self.owner.invocThisTurn+=1
             else :
                 self.owner.invocThisTurn=1
-            self.owner.player.launch(self.owner,self.spell)
+            self.owner.player.game.effect_list.append([1,self.owner.player.id,"launch",[self.owner.id,self.spell]])
 
 class RaleDAgonie(Trigger) :
     def getCost(self,monster) :
@@ -1126,7 +1193,8 @@ class DegatCreature(SpellWithLevel) :
         return (n*0.9-0.08*n*(n-1)/2)*self.target.getCostMultiplier(self)
     def effect(self,origin,target):
         #print "degat effect sur",target.name,target.game
-        target.sufferDamage(self.level.getLevel(origin))
+        if isinstance(target,Creature) :
+            target.sufferDamage(self.level.getLevel(origin))
     
     def getDescription(self):
         return "Inflige "+self.level.getDescription("degat sur creature") + self.target.getDescription()
@@ -1148,7 +1216,7 @@ class DegatSurSonHeros(SpellWithLevel) :
         target.pv-=self.level.getLevel(origin) # pas de reductio de degat sur ce malus
         target.sufferDamage(0)
     def willAct(self,creature):
-        return True
+        return (self.level.getLevel(creature)>0)
     def getDescription(self):
         return "Inflige "+self.level.getDescription("degat")+" sur son heros"
     def getValue(self) :  # interret au combat
@@ -1195,7 +1263,7 @@ class Bonus(SpellWithTwoLevels) :
                     if isinstance(b,BonusEffect):
                         b.increaseLevel(min(self.level.getLevel(target),target.card.att+1),min(self.level2.getLevel(target),target.card.pv+1))
                         break
-
+            target.setValue()
 
 class BonusEffect(BonusMonstreWithTwoLevels):
     interest=0 # se voit sur le carac 
@@ -1268,7 +1336,7 @@ class CopieMain(Spell.Spell) :
     positive = True # false is default
     has_target = True
     def getCost(self) :
-        return 1.+2.*max(self.target.getCostMultiplier(self),1.)*(1.+(self.target.getCostMultiplier(self)==2))
+        return 1.+2.*max(self.target.getCostMultiplier(self),1.)*(1.+(self.target.getCostMultiplier(self)==1.8))
     def getStars(self):
         return 2
     def effect(self,origin,creature):
@@ -1283,7 +1351,7 @@ class CopieInvoque(Spell.Spell) :
     positive = True # false is default
     has_target = True
     def getCost(self) :
-        return 0.1+6.*max(self.target.getCostMultiplier(self),1.)*(1.+(self.target.getCostMultiplier(self)==2))
+        return 0.1+6.*max(self.target.getCostMultiplier(self),1.)*(1.+(self.target.getCostMultiplier(self)==1.8))
     def getStars(self):
         return 2
     def effect(self,origin,creature):
@@ -1368,10 +1436,10 @@ class FaireDefausser(SpellWithLevel) :
     def getTarget(self,creature) :
         return  [creature.player.adv]
     def effect(self,origin,advplayer):
-        print('FaireDefausser effect')
+        fprint('FaireDefausser effect')
         from Sprites import Animation
         if len(advplayer.hand)>self.level.getLevel(origin) :
-            print("appel de game.random de faire defausser")
+            fprint("appel de game.random de faire defausser")
             ca = [advplayer.hand[i] for i in advplayer.game.random(self.level.getLevel(origin),len(advplayer.hand))]
         else :
             ca=advplayer.hand
@@ -1411,7 +1479,7 @@ class Sarcophage(SpellWithLevel) :
         else:
             return 0
     def effect(self,origin,target):
-        if isinstance(target,AnimatedCreature) : print( "appel sarco effect")
+        if isinstance(target,AnimatedCreature) : fprint( "appel sarco effect")
         if isinstance(target,Creature) and target.pv>0:
             if hasattr(target,"sarcoturn") and target.sarcoturn>0 :
                 target.sarcoturn = max(target.sarcoturn,self.level.getLevel(origin))
@@ -1433,7 +1501,7 @@ class Sarcophage(SpellWithLevel) :
             target.sarcoturn = self.level.getLevel(origin)            
         else :
             from Player import Computer0
-            if (not isinstance(origin.player,Computer0))  : print( "pas d effet sur ",target.name)
+            if (not isinstance(origin.player,Computer0))  : fprint( "pas d effet sur ",target.name)
     def willAct(self,creature):
         targets= self.target.getTarget(creature)
         for mons in targets  :
@@ -1499,7 +1567,7 @@ class Gel(Spell.Spell) :
                 target.ready=False
         else :
             from Player import Computer0
-            if (not isinstance(origin.player,Computer0))  : print( "pas d effet sur ",target.name)
+            if (not isinstance(origin.player,Computer0))  : fprint( "pas d effet sur ",target.name)
 class GelEffect(BonusMonstreWithLevel) :
     interest=-1
     def getCost(self,monster) :
@@ -1532,7 +1600,7 @@ class BouclierDivin(Spell.Spell) :
     def getStars(self):
         return 1
     def effect(self,origin,target):
-        #print "appel bouclier divin effect"
+        print ("appel bouclier divin effect")
         if isinstance(target,Creature) and (not target.hasMark("bouclier_divin")) and (not target.hasMark("sarcophage")) :
             target.addMark("bouclier_divin",size=(160,230),pos="center",typ="external",value=2)
             target.bonus.append(BouclierDivinEffect())
@@ -1572,7 +1640,7 @@ class Assassinat(Spell.Spell) :
             target.die()
         else :
             from Player import Computer0
-            if (not isinstance(origin.player,Computer0))  : print( "pas d effet sur ",target.name)
+            if (not isinstance(origin.player,Computer0))  : fprint( "pas d effet sur ",target.name)
 
 class Sacrifice(Spell.Spell) :
     positive = False  # sur son armme obligatoirement
@@ -1585,9 +1653,9 @@ class Sacrifice(Spell.Spell) :
     def getCost(self) :
         return 5*(2*self.target.getCostMultiplier(self)-1.)
     def effect(self,origin,target):
-        print( "appel sacrifice effect")
+        fprint( "appel sacrifice effect")
         if isinstance(target,Creature) and target.pv>0 and target.player==origin.player :
-            if any([isinstance(b,Errant) for b in target.bonus]) :
+            if any([b.__class__.__name__=="Errant" for b in target.bonus]) :
                 ChangementDeCamp().effect(origin,target)
             else :
                 target.is_dead=True # pour annuler rale d agonie qui pourrait etre une invocation
@@ -1596,15 +1664,15 @@ class Sacrifice(Spell.Spell) :
                     #print "removed ",b
                     b.removed()
         else :
-            print( "target sacrifice refuse")
+            fprint( "target sacrifice refuse")
             if origin.pv >0 and isinstance(origin,Creature) and origin.is_dead==False :
                 target=origin
             else :
                 if all([m.is_dead for m in origin.player.army]) :
-                    print("plus rien a sacrifier")
+                    fprint("plus rien a sacrifier")
                     return
                 target=[m for m in origin.player.army if m.is_dead==False][0]
-            print( "ce sera ",target.name,target.id)
+            fprint( "ce sera ",target.name,target.id)
             target.is_dead=True # pour annuler rale d agonie qui pourrait etre une invocation
             target.die()
             for b in target.bonus : # il faut quand meme enlever les bonus
@@ -1619,8 +1687,8 @@ class ChangementDeCamp(Spell.Spell) :
     def getStars(self):
         return 1
     def effect(self,origin,target):
-        if isinstance(target,Creature) and target.pv>0 :
-            
+        if isinstance(target,Creature) and target.pv>0 and not any([b.__class__.__name__=="Incarnation" for b in target.bonus]) :
+            #print ("cahnge camp",target.name)
             for b in reversed(target.bonus) :
                 b.removed() # remove effect (bonus given to ...) but not bonus itself
             for m in target.player.adv.army :
@@ -1658,7 +1726,7 @@ class ChangementDeCamp(Spell.Spell) :
                 target.takePlace()
         else :
             from Player import Computer0
-            if (not isinstance(origin.player,Computer0))  : print( "pas d effet sur ",target.name)
+            if (not isinstance(origin.player,Computer0))  : fprint( "pas d effet sur ",target.name)
 
 
 class ReduitUnServiteurA1Vie(Spell.Spell) :
@@ -1675,7 +1743,7 @@ class ReduitUnServiteurA1Vie(Spell.Spell) :
         else :
             from Player import Computer0
             if (not isinstance(origin.player,Computer0))  : 
-                print( "pas d effet sur ",target.name)
+                fprint( "pas d effet sur ",target.name)
     
     def getSpellDescription(self):
         return "Reduit a 1 point de vie "
@@ -1683,6 +1751,10 @@ class ReduitUnServiteurA1Vie(Spell.Spell) :
     
     def willAct(self,creature):        
         targets= self.target.getTarget(creature)
+        for mons in targets  :
+           if mons.max_pv >0 :
+               for i in mons.bonus :
+                   targets=i.modifySpellTarget(targets)
         for mons in targets  :
            if mons.max_pv >0 :
                for i in mons.bonus :
@@ -1723,7 +1795,7 @@ class ReduitUnServiteurA1Att(Spell.Spell) :
             target.att = 1
         else :
             from Player import Computer0
-            if (not isinstance(origin.player,Computer0))  : print( "pas d effet sur ",target.name)
+            if (not isinstance(origin.player,Computer0))  : fprint( "pas d effet sur ",target.name)
     
     def getSpellDescription(self):
         return "Reduit a 1 d'attaque "
@@ -1734,9 +1806,11 @@ class ReduitUnServiteurA1Att(Spell.Spell) :
            if mons.max_pv >0 :
                for i in mons.bonus :
                    targets=i.modifySpellTarget(targets)
+        for mons in targets  :
+           if mons.max_pv >0 :
+               for i in mons.bonus :
+                   targets=i.modifySpellTarget(targets)
         return any([cr.att>1 for cr in targets])
-
-ReduitA1Att=ReduitUnServiteurA1Att
 
 class GuerisonTotale(Spell.Spell) :
     positive = True
@@ -1765,14 +1839,25 @@ class EnlevePouvoirSpeciaux(Spell.Spell) :
     def getCost(self) :
         return 2.6*(-0.2+max(1.,self.target.getCostMultiplier(self)))
     def effect(self,origin,creature):
-        if isinstance(creature,Creature) and creature.pv>0:
+        if isinstance(creature,Creature) and creature.pv>0 and len(creature.bonus)>0 :
+            affliction=None
+            incarnation=None
             for b in reversed(creature.bonus) :
                 b.removed()
+                if b.__class__.__name__[0:9]=="NePeutPas" :
+                    affliction=b
+                if b.__class__.__name__[0:9]=="Incarnation" :
+                    incarnation=b
             #for k,m in reversed(creature.marks.items()) :
             #    if hasattr(m, '__getitem__') and m[3]=="power" :
             #        del creature.marks[k]
             creature.bonus=[]
-            creature.addMark("cross",size=(300,400),pos="center",typ="",level=1,value=0)    
+            if affliction :
+                creature.bonus.append(affliction)
+            if incarnation :
+                creature.bonus.append(incarnation)
+            creature.addMark("cross",size=(300,400),pos="center",typ="",level=1,value=0)
+            creature.setValue()
     def getDescription(self):
         return "Enleve tous les pouvoirs speciaux \n"+self.target.getDescription(True)
 

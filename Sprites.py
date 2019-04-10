@@ -181,9 +181,9 @@ class Animation :
             if any([s<0 for s in self.subject.size] ) :
                 print( "self.subject.size ",self.subject.size)
                 try :
-                    print( "ERROR with ",self.subject.name)
+                    print( "SIZE ERROR with ",self.subject.name)
                 except :
-                    print( "ERROR with unnamed sprite")
+                    print( "SIZE ERROR with unnamed sprite")
             else :
                 self.subject.image = pygame.transform.scale(self.subject.graphism,self.subject.size)
                 #print "animate"

@@ -141,7 +141,7 @@ class Player:
             self.game.mouse.mode = "normal"
         self.orderArmy()
     def launch(self,origin,spell) :
-        print ("Player spell launch  :",spell.getInlineDescription())
+#        print ("Player spell launch  :",spell.getInlineDescription())
         if hasattr(self,"nv") and self.verbose: print( " "*4*(2-self.nv)+"player ",self.name,"launch ",spell.getInlineDescription(),"from",origin,"  army is len",len(self.army))
         origin.castSpellAnimation()
         target=spell.getTarget(origin)
@@ -161,7 +161,7 @@ class Player:
         elif target :
             #poss=self.spell_targets(origin)
             #target=[t for t in target if t in poss]
-            #print "spell",spell.__class__.__name__,origin,target
+#            print ("spell",spell.__class__.__name__,origin,target)
             self.spellEffect(spell,origin,target)
             #print "spell is done"
         if hasattr(origin,"die") and origin.pv<1 and origin.is_dead == False :
@@ -180,7 +180,7 @@ class Player:
             self.launch(self.army[0],CardPowers.Sacrifice())
     def spellEffect(self,spell,origin,targets) :
        #if self.verbose>3 : print " "*4*(2-self.nv)+self.name,"appel de spellEffect ",spell.getInlineDescription(),"from",origin.name,"on",[t.name for t in targets]
-       print ("spell effect de ",spell.constructor())
+       #print ("spell effect de ",spell.constructor())
        #print "target before",len(targets)
        if origin.max_pv==0 :
            origin.pv=-1
@@ -188,12 +188,16 @@ class Player:
             print( "origin",origin.name,origin.id, " not in objects list  for",self.name )
             print( "objects list contains", self.game.objects.keys())
             raise Exception("origin error")
-       if not isinstance(spell,CardPowers.Sacrifice) and not isinstance(spell,CardPowers.Cataclysme) :
+       if not isinstance(spell,CardPowers.Sacrifice) and not isinstance(spell,CardPowers.Cataclysme) and not spell.__class__.__name__=="AuChoix" :
            for mons in reversed(targets)  :
                if mons.max_pv >0 :
                    for i in mons.bonus :
                        targets=i.modifySpellTarget(targets)
-       print ("target after",len(targets))
+           if len(targets)==1  :
+               mons=targets[0]
+               if mons.max_pv >0 :
+                   for i in mons.bonus :
+                       targets=i.modifySpellTarget(targets)
        for t in reversed(targets) :
             #print "effect ",spell.__class__.__name__," on ",t.name,t.id
             if spell.__class__.__name__!="AuChoix" and "choix1"==t.name :
@@ -216,7 +220,12 @@ class Player:
         if isinstance(t,Player) : t=t.icon
         phase0=(t.getPosition(),10,None)    
         Animation(sp,[phase0],True)
-        
+    def send(self,st) :
+        soc=self.game.soc
+        print(st)
+        print(type(st))
+        print("I send : *"+st+"*")
+        soc.send(st.encode('utf-8'))
     def update(self,events):
         # player update est pour jouer ou pour choisir une cible
         soc=self.game.soc
@@ -235,10 +244,10 @@ class Player:
                     for t in contact :
                         if t in valide_target :
                             self.Attacker_selected.combatAnim(t)
-                            if soc : soc.send(("Attack "+t.name[:6]+" "+str(t.id)+"\n").encode('utf-8'))                          
+                            if soc : self.send("Attack "+t.name[:6]+" "+str(t.id)+"\n")                          
                             break
                     else :                        
-                        if soc : soc.send("None\n".encode('utf-8'))
+                        if soc : self.send("None\n")
                     self.deselection()                       
                 elif self.spell_pending != None:
                     print ("clic et spell pending")
@@ -261,7 +270,7 @@ class Player:
                         if t in valide_target :
                             self.deselection()                     
                             self.spellEffect(spell,origin,[t])
-                            if soc : soc.send(("aim at "+t.name[:6]+" "+str(t.id)+"\n").encode('utf-8'))
+                            if soc : self.send("aim at "+t.name[:6]+" "+str(t.id)+"\n")
                             break
                         else :
                             print([m.name for m in valide_target])
@@ -282,22 +291,27 @@ class Player:
                                     pass
                             else :
                                 self.selection(zoomedcard)
-                                if soc : soc.send(("Attack with "+zoomedcard.name+" "+str(zoomedcard.id)+"\n").encode('utf-8'))
+                                if soc : self.send("Attack with "+zoomedcard.name+" "+str(zoomedcard.id)+"\n")
                     elif isinstance(zoomedcard,CardInHand) and zoomedcard.player==self:
                         if self.actualCost(zoomedcard) <= self.mana:
                             if self.nb_invocation_done_this_turn>=5 :
                                 print( "only 5 monster per Turn can be created")
                             else :
                                 self.playCard(zoomedcard)
-                                if soc : soc.send(("Creation of "+zoomedcard.getInlineDescription()+"\n").encode('utf-8'))
+                                if soc : self.send("Creation of "+zoomedcard.getInlineDescription()+"\n")
+                        else :
+                            print("pas assez mana")
                     elif zoomedcard :  # should be only None left
                         print( "unknown type ?" )
                 # Clicked on end button
                 if self.game.endturn_button.rect.collidepoint(pos):
                     self.deselection()
                     if not self.ending :
-                        if soc : soc.send(("End your turn\n").encode('utf-8'))
-                        self.endTurn()             
+                        print ("select end turn")
+                        if soc : self.send("End your turn\n")
+                        self.endTurn()     
+                    else :
+                        print ("already ending ?")
         #print "fin player update"
                         
     def actualCost(self,card) :
@@ -357,11 +371,10 @@ class Player:
         limo = [m for m in self.army]# la boucle avec reversed sur un OrderedUpdate a pose probleme au moins une fois
         for cr in limo: # si un mort, pas d erreur d indice
             if cr.max_pv>0 : cr.endTurn()
-        self.game.waitEndOfEffects()
-        while self.spell_pending or self.game.animations : 
+        while self.spell_pending or self.game.animations or self.game.effect_list : 
             #print "end Turn spell pending"
             self.game.update()
-            self.game.waitEndOfEffects()
+            self.game.treatEffectList()
             #self.game.mouse.update()
             #self.update(pygame.event.get())  # on attends que le sort precedent soit lance
         self.ending=False
@@ -393,7 +406,6 @@ class Player:
         #if self.verbose>4 : print "         appel de spell_targets "
         #print "%%%%%% spell_targets  !",spell.__class__.__name__
         if spell.__class__.__name__=="AuChoix" : # pas bien : devrait pas utiliser nom specifique de pouvoir
-            print("choix limite a choix 1 et choix2")
             targets= [m for m in self.army if "choix1"==m.name or "choix2"==m.name  ]
             return targets
         targets=[]
@@ -409,16 +421,16 @@ class Player:
                 if mons.pv>0 and mons.max_pv>0 : targets.append(mons)       
         if spell.__class__.__name__=="Degat" or spell.__class__.__name__=="Guerison" :
             targets.append(self.adv)
-        else :
-            print("pas degat ",spell.__class__.__name__,": pas adv dans la liste")
+#        else :
+#            print("pas degat ",spell.__class__.__name__,": pas adv dans la liste")
         targets.append(self)
-        #print "dans spell_target",len(targets)
+        #if "imu" not in self.name : print ("dans spell_target avant",len(targets))
         if not isinstance(spell,CardPowers.Sacrifice) :
             for mons in reversed(targets) :
                 if not (mons is self) and not (mons is self.adv) and mons.pv>0 :
                     for i in mons.bonus :
                         targets=i.modifySpellTargetChoice(targets)
-        #print "dans spell_target",len(targets)
+        #if "imu" not in self.name : print ("dans spell_target",len(targets))
         #if 'simu' not in self.name :
         #print "for player ",self.name,self.id," spell_targets =",[t.name for t in targets]
         return targets
@@ -455,7 +467,7 @@ class Computer0(Player) :
             #print "** VERIF **"
             del self.verify_value
     def play(self) :
-        if not isinstance(self,SimulationComputer) : print ("computer0 play",self.name)
+        #if not isinstance(self,SimulationComputer) : print ("computer0 play",self.name)
 #        if "simu" not in self.name :
 #            print [(c.name , len(c.content.bonus)) for c in self.hand]
         #if self.verbose>4 : print( " "*4*(2-self.nv)+" computer ",self.name," plays ")
@@ -519,14 +531,14 @@ class Computer0(Player) :
     def launch(self,origin,spell) :
         if not hasattr(self,"nv") :
             self.nv=1
-        print( " "*4*(2-self.nv)+"computer ",self.name," launch",spell.getInlineDescription()," from ",origin.name,origin.id)
+        #print( " "*4*(2-self.nv)+"computer ",self.name," launch",spell.getInlineDescription()," from ",origin.name,origin.id)
         #if hasattr(self,"verify_value") : del self.verify_value # le sort va modifier l etat du jeu
         origin.castSpellAnimation()
         target=spell.getTarget(origin)
         #print " target in launch ; ",target," from origin",origin.name,origin.id," de player ",origin.player.id
         #print "for computer launch , target=",target
         if target=="choose" :
-            print('choose dans computer0 launch')
+            #print('choose dans computer0 launch')
             while self.adv.spell_pending :
                 self.game.mouse.update()                                      
                 self.game.display_zoom()
@@ -594,9 +606,9 @@ class Computer(Computer0) :
         self.action=action
     def evaluateSituation(self,player1,player2,verbose=False) :
         #if self.verbose>4 : print " "*4*(2-self.nv)+"appel de evaluateSituation for computer ",self.name
-        armyval=[int(3*i.getValue()*100)/100. for i in player1.army if i.pv>0 ]
+        armyval=[int(3*i.value*100)/100. for i in player1.army if i.pv>0 ]
         #if verbose and self.verbose>0 : print " "*4*(2-self.nv),len(player1.army)," monstres  ",[i.name for i in player1.army if i.pv>0 ]," de valeur ",armyval 
-        armyval2=[int(3*i.getValue()*100)/100. for i in player2.army if i.pv>0 ]
+        armyval2=[int(3*i.value*100)/100. for i in player2.army if i.pv>0 ]
         if verbose and self.verbose>2 : print( " "*4*(2-self.nv)+"eval monstres",'-'.join([i.name[:3] for i in player1.army if i.pv>0 ]),"val=",armyval," contre ",'-'.join([i.name[:3] for i in player2.army if i.pv>0 ]),"val=",armyval2)
         if len(armyval)>5 :
             armyval.sort(reverse=True)
@@ -611,7 +623,7 @@ class Computer(Computer0) :
             for c in player1.hand :
                 print( "player c is",c,c.name,hasattr(c,"costint"))
         from collections import Counter
-        cardvalues=[1+c.getCost()+c.starcost*2 for c in player1.hand ]
+        cardvalues=[1+c.costint+c.starcost*2 +1.*(c.content.pv==0) for c in player1.hand ]
         cardvaluesC=Counter(cardvalues)
         #print cardvaluesC
         CardVal=sum([1+n**0.5*v for n,v in cardvaluesC.items()])
@@ -682,11 +694,11 @@ class Computer(Computer0) :
                 if self.nv>0 and self.verbose>0 : print( " ")
                 if playing_monster :
                     if len(poss[0])>3 :
-                      if self.verbose>-1 : print( " "*4*(2-self.nv)+"** I am ",self.name,' and I must evaluate ',len(poss),' targets for',poss[0][3].__class__.__name__,'from ',playing_monster.name,playing_monster.id)
+                      if self.verbose>-1 : print( " "*4*(2-self.nv)+"** I am ",self.name,' and I must evaluate ',len(poss),' targets for spell',poss[0][3].__class__.__name__,'from ',playing_monster.name,playing_monster.id)
                     else :
                       if self.verbose>-1 : print( " "*4*(2-self.nv)+"** I am ",self.name,' and I must evaluate ',len(poss),' targets for',playing_monster.name)
                 else :
-                    if self.verbose>-1 : print( " "*4*(2-self.nv)+"** I am ",self.name,' and I must evaluate ',len(poss), "options")
+                    if self.verbose>-1 : print( " "*4*(2-self.nv)+"** I am ",self.name,' and I must evaluate ',len(poss), "options",[p[1][:9] for p in poss])
                 if self.verbose>2 and self.game.effect_list : print (" "*4*(2-self.nv)+"with effect list ",[e[2] for e in self.game.effect_list if e[0]>0])
                 if self.verbose>2 : print( " "*4*(2-self.nv)+"with ids ",[(m.name[:3],m.id) for m in self.army],[(m.name[:3],m.id) for m in self.adv.army]," and deads ",[(m.name[:3],m.id) for m in self.game.dead_monsters])
                 if self.verbose>5 : print( " "*4*(2-self.nv)+"before getChoice, situation is ",)
@@ -834,10 +846,12 @@ class Computer(Computer0) :
 class SimulationComputer(Computer) :
     verbose = 0
     class NotPlayableCard :
-        costint=5
-        starcost=0
-        pv=2
-        name="NotPlayableCard"
+        def __init__(self) :
+            self.content=self            
+            self.costint=5
+            self.starcost=0
+            self.pv=2
+            self.name="NotPlayableCard"
         def getCost(self):
             return 5  # doit correspondre a la valeur dans evaluate situation
 #    def playCard(self,card) :
@@ -929,7 +943,7 @@ class HostedPlayer(Computer0) :
                 #print "nam brut",name
                 name=name.split('"')[0]
                 #print "name modif",name
-                if name not in all_monsters or c.getInlineDescription()!=all_monsters[c.name].getInlineDescription() :
+                if (not (c.name in all_monsters)) or (c.getInlineDescription()!=all_monsters[c.name].getInlineDescription()) :
                     asking.add(name)
         for name in asking :
             self.game.soc.send(name.encode('utf-8'))
@@ -972,12 +986,12 @@ class HostedPlayer(Computer0) :
             #events = pygame.event.get()
         if self.remains :
             mess=self.remains+'\n'+mess
+        mess=mess.strip()
         if "\n" in mess :
             print( "received in total ",mess)
             mess,self.remains=mess.split("\n",1)
         else :
             self.remains=""
-        mess=mess.strip()
         print( "got ",mess)
         for p in poss :
             if mess.strip()==p[1] :

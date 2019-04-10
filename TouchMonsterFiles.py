@@ -10,7 +10,7 @@ import glob
 #import types
 #import time
 
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
+os.chdir(os.path.dirname(os.path.realpath("__file__")))
 
 #from Card import Card
 #from Target import MasseEnemi,MasseEnnemi,Personnel

@@ -287,7 +287,7 @@ class DeckCreator():
                     print( 'ERROR : card not found : "'+creature+'" in ',all_monsters.keys())
         nbcoutreduit=0
         nbgainmana=0
-        pouvoirslimites=["CoutReduit","GainMana","CoutDesSortsReduit","CoutDesMonstresReduit"]
+        pouvoirslimites=["CoutReduit[(]","GainMana","CoutDesSortsReduit","CoutDesMonstresReduit"]
         limitregexp=[ re.compile(p) for p in pouvoirslimites]
         nbpoulimites=[0]*len(pouvoirslimites)
         for s,n in self.deck.items():

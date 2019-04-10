@@ -3,7 +3,7 @@ import re
 from Target import getTargetMenu, getNegativeSpellTargetMenu
 import Level
 import Target
-import random
+
 UP=re.compile('(?=[A-Z])')
 
 
@@ -100,6 +100,10 @@ class Spell :
 
     def willAct(self,creature):   
         targets= self.target.getTarget(creature)
+        for mons in targets  :
+           if mons.max_pv >0 :
+               for i in mons.bonus :
+                   targets=i.modifySpellTarget(targets)
         for mons in targets  :
            if mons.max_pv >0 :
                for i in mons.bonus :
@@ -427,12 +431,12 @@ class Invocation(SpellWithLevel) :
             print( "Invocation does not invocate")
             return []
         else :
-            if not "simu" in invocator.player.name :
-                print( "Invocation target is invocator")
+            #if not "simu" in invocator.player.name :
+            #    print( "Invocation target is invocator")
             return [invocator.player]
     def effect(self,invocator,invocator2=None): # pour un sort on a self,origin,target
-        if not "simu" in invocator.player.name :
-            print( "invocation effect for ",invocator.player.name)
+        #if not "simu" in invocator.player.name :
+        #    print( "invocation effect for ",invocator.player.name)
         from Creature import Creature,AnimatedCreature
         self.monster.costint=int(self.monster.getCost())
         self.monster.starcost=self.monster.getStars()
@@ -474,78 +478,7 @@ class PlaceCarteDansMain(Invocation):
     def getCost(self):
         #print "PlaceCarteDansMain cost is : ",2.25*self.level.getCostMultiplier(self)-1.5
         return 2.25*self.level.getCostMultiplier(self)-1.5
-"""
-class InvocationAleatoireDUnType(Spell) :
-    isTrigger=True
-    hasLevel=False
-    has_target = False
-    def __init__(self,race=None) :
-        if not race:
-            race = "human"
-        self.race=race
-        self.level = 1
-        self.parent=None
-    def initWidget(self,master) :
-        self.widget=tkinter.PanedWindow(master,orient=tkinter.HORIZONTAL)
-        self.content=tkinter.StringVar()
-        self.content.set(self.__class__.__name__)
-        self.content.trace("w", self.isChanged)
-        name_wid=getSpellMenu(self.widget,self.content)
-        #name_wid.pack()
-        self.widget.add(name_wid)
-        self.value=tkinter.StringVar()
-        self.value.set(str(self.level))
-        self.content= tkinter.StringVar()
-        self.content.set(self.race)
-        self.content.trace("w", self.changeType)        
-        spell_wid= tkinter.OptionMenu(self.widget,self.content,*self.allChoices())
-        number_wid = tkinter.Spinbox(self.widget, from_=1, to=20, textvariable=self.value,command= self.modifyLevel)        
-        number_wid.icursor(5)
-        self.widget.add(number_wid)
-        self.widget.add(spell_wid)
-        return self.widget
-    def allChoices(self):
-        import glob
-        choices = [c[:c.index("_monsters.sav")] for c in glob.glob("*_monsters.sav")]
-        print "Possible choices for type: ",choices
-        choices.remove("unknown")
-        return choices
-    def modifyLevel(self,*args) :
-        print "modified number",self.level
-        self.level=int(self.value.get())
-        self.card.getCost()
-    def getStars(self):
-        return 1# + self.monster.getStars()
-    def getCost(self):
-        return 4*self.level + (self.level-1)*0.5
-    def getDescription(self) :
-        return 'Invocation de '+ str(self.level) +"\n \"" + self.race + "\" aleatoir"
-    def getInlineDescription(self) :
-        return 'Invocation de '+ str(self.level) +" \"" + self.race + "\" aleatoir"
-    def getTarget(self,invocator):
-        return [invocator]
-    def changeType(self,*args):
-        self.race = self.content.get()
-        print "New type for the invocation : ",self.race
-    def effect(self,invocator,i2):
-        import pickle
-        with open(self.race+"_monsters.sav","rb") as file:
-            possible_monsters = pickle.load(file).values()
-            import random
-            monster = random.choice(possible_monsters)
-            monster.costint=int(monster.getCost())
-            monster.starcost=monster.getStars()
-            from Creature import Creature,AnimatedCreature
-            for i in range(self.level):
-                if isinstance(invocator,AnimatedCreature) :
-                    b=AnimatedCreature(invocator,monster,invocator.player,simultaneous=self.level)  #this makes invocator move
-                    print "invocation est passe"
-                else :
-                    b=Creature(invocator,monster,invocator.player)
-                #b.costint=int(monster.getCost())
-                #b.starcost=monster.getStars()
-                b.is_invocation=True
-"""
+
 class Transformation(Spell) :
     isTrigger=True
     hasLevel=False
@@ -589,8 +522,8 @@ class Transformation(Spell) :
     def getCost(self):
         return ( 2.3+max(
         self.monster.getCost()-2.4,
-        max(3.2-self.monster.att/2.-self.monster.pv/2,self.monster.pv/2)+sum([(-0.4-p.interest)*p.getCost(self.monster) for p in self.monster.bonus])
-        ,1.5))*1.*max(1.,self.target.getCostMultiplier(self))
+        max(3.5-self.monster.att/2.-self.monster.pv/2,self.monster.pv/2)+sum([abs(-0.4-p.interest)*p.getCost(self.monster) for p in self.monster.bonus])
+        ,2.))*1.*max(1.,self.target.getCostMultiplier(self))
     def getDescription(self) :
         return self.__class__.__name__+' en '+ self.monster.getDescription()+' de '+self.target.getDescription()
     def getInlineDescription(self) :
@@ -651,7 +584,9 @@ class ConfereBonus(Spell) :
             self.positive=False;
             self.negative=False
         from Card import troll
-        return (abs(self.spell.getCost(troll)-0.2)*1.3 + 1.1)*self.target.getCostMultiplier(self)
+        if self.spell.__class__.__name__=="NePeutPasAttaquer" or self.spell.__class__.__name__=="ALaPlaceDeLAttaque" :
+            return max(4,self.spell.getCost(troll)*1.4)*self.target.getCostMultiplier(self)
+        return (abs(self.spell.getCost(troll)-0.2)*1.2 + 0.8)*self.target.getCostMultiplier(self)
     def getSpellDescription(self):
         return "Donne "+self.spell.getDescription()
     def effect(self,origin,target):
@@ -665,6 +600,7 @@ class ConfereBonus(Spell) :
             b.afterInvocation(target)
             target.addMark(self.spell.getInlineDescription(),typ="power",value=0) # value determine par interest du bonus
             target.starcost+=[-0.5,0][self.positive]
+            target.setValue()
     def initWidget(self,master) :
         #from Bonus import getBonusMenu
         self.spell.parent=self
@@ -676,7 +612,8 @@ class ConfereBonus(Spell) :
         name_wid=getSpellMenu(self.widget,self.content)
         #name_wid.pack()
         self.widget.add(name_wid)
-        bonus_wid=self.spell.initWidget(self.widget)
+        print("reed",self.spell)
+        bonus_wid=self.spell.initWidget(self.widget,forother=True)
         self.widget.add(bonus_wid)
         if not(hasattr(self,"target")):
             self.target = Target.UneCibleAuChoix()        
@@ -705,7 +642,7 @@ class PlaceCarteDansPioche(PlaceCarteDansMain):
         self.monster.costint=int(self.monster.getCost())
         self.monster.starcost=self.monster.getStars()
         for n in range(self.level.getLevel(invocator)):
-            i = random.randrange(0,len(invocator.player.deck))
+            i = invocator.player.game.random(1,len(invocator.player.deck)+1)[0]
             invocator.player.deck = invocator.player.deck[0:i]+[self.monster]+invocator.player.deck[i:]
             #invocator.player.drawCard(self.level.getLevel(invocator))
                 #b.card.costint=b.costint
@@ -717,7 +654,35 @@ class PlaceCarteDansPioche(PlaceCarteDansMain):
 
     def getCost(self):
         #print "PlaceCarteDansMain cost is : ",2.25*self.level.getCostMultiplier(self)-1.5
-        return 0.6*self.level.getCostMultiplier(self)*(self.monster.getStars()-2*(self.monster.getStars()>2))+0.1*self.level.getCostMultiplier(self)
+        return 0.1+0.65*self.level.getCostMultiplier(self)*(self.monster.getStars()*1.2-2*(self.monster.getStars()>2))+0.1*self.level.getCostMultiplier(self)
+    def initWidget(self,master) :
+        self.monster.parent=self
+        self.widget=tkinter.PanedWindow(master,orient=tkinter.HORIZONTAL)
+        self.content=tkinter.StringVar()
+        self.content.set(self.__class__.__name__)
+        self.content.trace("w", self.isChanged)
+        name_wid=getSpellMenu(self.widget,self.content)
+        #name_wid.pack()
+        self.widget.add(name_wid)
+
+        self.add_level=tkinter.StringVar()
+        self.add_level.set(self.level.__class__.__name__)
+        self.level_wid=Level.getLevelMenu(self.widget, self.add_level)
+        self.add_level.trace('w', self.modifyLevelType)
+        self.widget.add(self.level_wid)
+        
+        self.value=tkinter.StringVar()
+        self.value.set(str(self.level.level))
+        value_wid=tkinter.Spinbox(self.widget, from_=1, to=1000,textvariable=self.value,
+            command=self.modifyLevel )
+        value_wid.icursor(5)
+        self.widget.add(value_wid)
+
+        spell_wid=self.monster.init_as_card(self.widget)
+        self.monster.card=self.card
+
+        self.widget.add(spell_wid)
+        return self.widget
 
 #possibleAsSpell=[PasDEffet]
 #listMultiplier=[]
