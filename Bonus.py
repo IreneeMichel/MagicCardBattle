@@ -7,6 +7,7 @@ UP=re.compile('(?=[A-Z])')
 class BonusMonstre :
     isTrigger=False
     hasTarget=False
+    hasLevel=False
     is_cost_alterator = False
     def __init__(self) :
         self.parent=None
@@ -248,6 +249,7 @@ def getBonusMenu(master,variable,forother=False) :
     if forother :
         list_bonus.remove("Incarnation")
         list_bonus.remove("NePeutPasAttaquer")
+        list_bonus.remove("NePeutPasAttaquerLesHeros")
         list_bonus.remove("Errant")
         list_bonus.remove("Charge")
         list_bonus.remove("CoutReduit")
@@ -304,10 +306,11 @@ class PlainteMaudite(Trigger) :
             creature.player.launch(creature,self.spell)
         else:
             creature.is_dead=True # pour annuler rale d agonie
-            creature.die()
+            creature.pv=0 
             for b in creature.bonus : # il faut quand meme enlever les bonus
                     #print "removed ",b
                     b.removed()
+            creature.die()
         if self in creature.bonus :
             creature.bonus.remove(self) # ameliore l evaluation par l ordi de la valeur de la creature
         creature.starcost -= self.getStars()

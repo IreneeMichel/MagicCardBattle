@@ -294,7 +294,7 @@ class SpellWithTwoLevels(SpellWithLevel) :
         self.widget.add(value_wid)
         
         self.add_level2=tkinter.StringVar()
-        self.add_level2.set(self.level.__class__.__name__)
+        self.add_level2.set(self.level2.__class__.__name__)
         self.level_wid2=Level.getLevelMenu(self.widget, self.add_level2)
         self.add_level2.trace('w', self.modifyLevel2Type)
         self.widget.add(self.level_wid2)
@@ -520,10 +520,10 @@ class Transformation(Spell) :
     def getStars(self):
         return self.monster.getStars()+1*(self.target.getCostMultiplier(self)>1.1)
     def getCost(self):
-        return ( 2.3+max(
-        self.monster.getCost()-2.4,
-        max(3.5-self.monster.att/2.-self.monster.pv/2,self.monster.pv/2)+sum([abs(-0.4-p.interest)*p.getCost(self.monster) for p in self.monster.bonus])
-        ,2.))*1.*max(1.,self.target.getCostMultiplier(self))
+        monster=self.monster
+        monsterAsFeable=5.-monster.pv*0.5-monster.att*0.5-0.5*("Provocation" in [b.__class__.__name__ for b in monster.bonus])+sum([abs(b.getCost(monster)) for b in monster.bonus if b.interest<0.])
+        monsterAsStrong=monster.getCost()+0.2
+        return max(2.8,monsterAsFeable,monsterAsStrong)*max(1.,self.target.getCostMultiplier(self))
     def getDescription(self) :
         return self.__class__.__name__+' en '+ self.monster.getDescription()+' de '+self.target.getDescription()
     def getInlineDescription(self) :
@@ -560,7 +560,7 @@ class Transformation(Spell) :
                 if not "simu" in origin.player.name :
                     print ("no effect on ",target)
              
-class ConfereBonus(Spell) :
+class ConfereCapacite(Spell) :
     hasLevel=False
     hasTarget=True
     def __init__(self,spell=None,target=Target.UneCibleAuChoix()) :
@@ -592,15 +592,21 @@ class ConfereBonus(Spell) :
     def effect(self,origin,target):
         from Creature import Creature
         if isinstance(target,Creature) and target.pv>0 :
-            from copy import copy
-            b=copy(self.spell)
-            b.owner=target
-            target.bonus.append(b)
-            target.starcost+=b.getStars()
-            b.afterInvocation(target)
-            target.addMark(self.spell.getInlineDescription(),typ="power",value=0) # value determine par interest du bonus
-            target.starcost+=[-0.5,0][self.positive]
-            target.setValue()
+            cn=[b.__class__ for b in target.bonus] 
+            if self.spell.__class__ in cn :
+                if self.spell.hasLevel :
+                    j=cn.index(self.spell.__class__)
+                    target.bonus[j].level=max(target.bonus[j].level,self.spell.level)
+            else :
+                from copy import copy
+                b=copy(self.spell)
+                b.owner=target
+                target.bonus.append(b)
+                target.starcost+=b.getStars()
+                b.afterInvocation(target)
+                target.addMark(self.spell.getInlineDescription(),typ="power",value=0) # value determine par interest du bonus
+                target.starcost+=[-0.5,0][self.positive]
+                target.setValue()
     def initWidget(self,master) :
         #from Bonus import getBonusMenu
         self.spell.parent=self
@@ -654,7 +660,7 @@ class PlaceCarteDansPioche(PlaceCarteDansMain):
 
     def getCost(self):
         #print "PlaceCarteDansMain cost is : ",2.25*self.level.getCostMultiplier(self)-1.5
-        return 0.1+0.65*self.level.getCostMultiplier(self)*(self.monster.getStars()*1.2-2*(self.monster.getStars()>2))+0.1*self.level.getCostMultiplier(self)
+        return 0.+0.65*self.level.getCostMultiplier(self)*(self.monster.getStars()*1.2-2*(self.monster.getStars()>2))+0.6*self.level.getCostMultiplier(self)
     def initWidget(self,master) :
         self.monster.parent=self
         self.widget=tkinter.PanedWindow(master,orient=tkinter.HORIZONTAL)

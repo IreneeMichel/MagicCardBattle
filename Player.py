@@ -163,7 +163,12 @@ class Player:
             #target=[t for t in target if t in poss]
 #            print ("spell",spell.__class__.__name__,origin,target)
             self.spellEffect(spell,origin,target)
-            #print "spell is done"
+            #print ("spell is done")
+        else :
+            print ("no target for spell ",spell.getInlineDescription())
+#            if "ouclier" in spell.__class__.__name__ :
+#                raise()
+            
         if hasattr(origin,"die") and origin.pv<1 and origin.is_dead == False :
             #print "     player launch die "
             origin.is_dead=True
@@ -288,7 +293,8 @@ class Player:
                     if isinstance(zoomedcard,Creature) and zoomedcard.player==self:
                         if zoomedcard.ready :
                             if any([isinstance(b,CardPowers.NePeutPasAttaquer) for b in zoomedcard.bonus]) :
-                                    pass
+                                print ("unable to attack") 
+                                pass
                             else :
                                 self.selection(zoomedcard)
                                 if soc : self.send("Attack with "+zoomedcard.name+" "+str(zoomedcard.id)+"\n")
@@ -623,7 +629,7 @@ class Computer(Computer0) :
             for c in player1.hand :
                 print( "player c is",c,c.name,hasattr(c,"costint"))
         from collections import Counter
-        cardvalues=[1+c.costint+c.starcost*2 +1.*(c.content.pv==0) for c in player1.hand ]
+        cardvalues=[2+c.costint+c.starcost*2 +1.5*(c.content.pv==0) for c in player1.hand ]
         cardvaluesC=Counter(cardvalues)
         #print cardvaluesC
         CardVal=sum([1+n**0.5*v for n,v in cardvaluesC.items()])
@@ -657,7 +663,8 @@ class Computer(Computer0) :
                         print( " for spell ",poss[0][3].__class__.__name__, "from ",poss[0][0].name,poss[0][0].id)
                     else :
                         print( " for attack of ",poss[0][0].name,poss[0][0].id)
-                print() 
+                else :
+                    print(" for card choice") 
                 if self.action[1]!=len(poss) :
                     print( "erreur dans player.getChoice (action decidee), devrait avoir ",self.action[1]," possibilites et en a ",len(poss))
                 else :

@@ -33,7 +33,7 @@ def readMonsters(filename) :
                 if len(m)>4 : # on saute les lignes vides
                   c=evalCard(m)                
                   monsters[c.name]=c
-            except e:
+            except Exception as e:
                 print ("in file ",filename)
                 print ("ERROR reading line :",m)
                 raise e
@@ -85,6 +85,7 @@ def centerText(screen,position,text,fontSize,color,bg=None) :
  
                
 class Card :
+    blocked_creature=[]  # should be overwriten in normal execution of portailaccueil
     def __init__(self,name="Nom monstre",att=1,pv=1,bonus=None,photo='',monster_type="unknown") :
         self.name=name
         self.att = att
@@ -213,7 +214,7 @@ class Card :
         return True
  
     def save(self,*args):
-        if (self.name in Card.blocked_creature) :
+        if (self.name in  Card.blocked_creature) :
             return
         for b in self.bonus : # on veut que la plainte maudite soit en dernier
             if b.__class__.__name__=="PlainteMaudite" :
@@ -259,7 +260,8 @@ class Card :
         print ("open monster ",  self.opening.get())
         #deck_with_card =  self.deck_check(self.opening.get())
         creature = Card.monster_list[self.opening.get()]
-        if not ( creature.name in Card.blocked_creature) :
+        print("blocked_creature", Card.blocked_creature)
+        if not ( creature.name in  Card.blocked_creature) :
             self.card_win.pack_forget()
             fenetre=self.card_win.master
             #for i in Card.monster_list.keys() :
@@ -737,15 +739,28 @@ mouton = Card("Mouton",1,1)
 #if __name__ == "__main__" :
 #import pickle
 if True:
+    file_all_monster=os.path.join("CardFiles","all_monsters.sav")
+    try:
+        with open(file_all_monster) as f :
+            try :
+              f.readline()
+              print(file_all_monster,"exists")
+              f.readline()
+            except :
+              print("ERROR : file",file_all_monster,"(almost?) empty")
+    except IOError:
+        print("ERROR : file",file_all_monster," could not be open")
     try :
-        all_monsters=readMonsters(os.path.join("CardFiles","all_monsters.sav"))
-    except :
+        all_monsters=readMonsters(file_all_monster)
+    except Exception as e:
+        print(e)
         print ("existing files are ",glob.glob("*/*monster*.sav"))
         print ("error reading CardFiles/all_monsters.sav")
         try:
-            #from cardPowers import *
+            print("try to return to recup_monster.sav")
             shutil.copyfile("CardFiles/recup_monsters.sav","CardFiles/all_monsters.sav")
-            all_monsters=readMonsters("CardFiles/all_monsters.sav")
+            print("--")
+            all_monsters=readMonsters(file_all_monster)
             print ("recup all monsters")
         except:
             print (" pas de recuperation")

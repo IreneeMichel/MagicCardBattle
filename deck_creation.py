@@ -51,14 +51,18 @@ def getBlockedCreatures(blocked_decks) :
                         c=all_monsters[m].getCost()
                         if c-int(c)<0.5 and all_monsters[m].pv>0 :
                             print( "revoir ",m,all_monsters[m].monster_type)
-                blocked_creature=blocked_creature+deck.keys()
-        except Exception as e :
+                blocked_creature=blocked_creature+list(deck.keys())
+        except Exception :
             print( "in",i,"pb with",m)
             try :
+                print(all_monsters[m])
+            except Exception  :
+                print ("ERROR in",df,", not found",m," , ",all_monsters[m].monster_type)
+            try :      
                 all_monsters[m].getCost()
-                print( "ERROR ",df," not found",m,all_monsters[m].monster_type)
-            except Exception as e :
-                print( e)
+            except Exception  :
+                print( " error for getCost of ",m)
+            m=""
     return blocked_creature 
 
 class DeckCreator():
@@ -290,6 +294,9 @@ class DeckCreator():
         pouvoirslimites=["CoutReduit[(]","GainMana","CoutDesSortsReduit","CoutDesMonstresReduit"]
         limitregexp=[ re.compile(p) for p in pouvoirslimites]
         nbpoulimites=[0]*len(pouvoirslimites)
+        for s in list(self.deck.keys()):
+            if s not in all_monsters :
+                    del self.deck[s]            
         for s,n in self.deck.items():
             if s != "AvatarImage":
                 try:
@@ -300,7 +307,8 @@ class DeckCreator():
                         print( n,"*",all_monsters[s].name,"(",starcostint,")")
                 except:
                     print( "error with ",s,n)
-                    del self.deck[s]
+
+                    continue
                 for i in range(len(nbpoulimites)) :
                     nbpoulimites[i]+=len(limitregexp[i].findall(all_monsters[s].constructor()))*n
         print( [(p,nbpoulimites[i])  for i,p in enumerate(pouvoirslimites)])

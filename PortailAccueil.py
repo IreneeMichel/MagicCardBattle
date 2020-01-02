@@ -42,6 +42,8 @@ img_blank_button = pygame.image.load("gameAnimationImages/BlankButton.png")
 if len(glob.glob("Cards/*.png"))<10 :
     print (" Cards not found ")
     exec(open('./TouchMonsterFiles.py').read())
+else :
+    print("png card images already created")
 
 all_cards = {}
 from Card import readMonsters
@@ -182,7 +184,12 @@ class DeckButton(Button):
             deck = eval(fil.read())
             del deck["AvatarImage"]
             print (deck_name)
-            for k in deck.keys() :
+            dictkeys=list(deck.keys() )  # can change during iteration
+            for k in dictkeys :
+                if k not in all_cards :
+                    deck.pop(k,None)
+                    print(" card ",k," not found and removed from deck")
+                    continue
                 try :
                     all_cards[k].getCost()
                 except Exception as e:
