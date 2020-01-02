@@ -10,7 +10,7 @@ Card("La Moria",1,3,[CardPowers.ALaPlaceDeLAttaque(CardPowers.AuChoix(CardPowers
 Card("Lingots en Or",0,4,[CardPowers.CoutDesMonstresReduit(2)],'photo/New/investir-or.jpg','dwarf')
 Card("Lutin Des Ombres",0,1,[CardPowers.Charge()],'photo/lutin.jpg','dwarf')
 Card("Maitre fracasseur",6,7,[CardPowers.InsensibleALaMagie(),CardPowers.CoutReduit()],'photo/New/ResizedImage600326-pretre.jpg','dwarf')
-Card("Marteau",0,0,[CardPowers.AuChoix(Spell.ConfereBonus(CardPowers.Initiative(),Target.UneCibleAuChoix()),CardPowers.EnlevePouvoirSpeciaux(Target.UneCibleAuChoix()))],'photo/New/xVAST40207_b_1345813385.jpg','dwarf')
+Card("Marteau",0,0,[CardPowers.AuChoix(Spell.ConfereCapacite(CardPowers.Initiative(),Target.UneCibleAuChoix()),CardPowers.EnlevePouvoirSpeciaux(Target.UneCibleAuChoix()))],'photo/New/xVAST40207_b_1345813385.jpg','dwarf')
 Card("Mine",0,3,[CardPowers.Insaisissable(),CardPowers.ALaPlaceDeLAttaque(Spell.Invocation(Level.NbFixe(1),Card("Nabot",1,1,[CardPowers.Isole()],'photo/New/3071817171_1_7_wbnYoqMG.jpg','dwarf'))),CardPowers.Charge()],'photo/New/pP1egPn.jpg','dwarf')
 Card("Nabot",1,1,[CardPowers.Isole()],'photo/New/3071817171_1_7_wbnYoqMG.jpg','dwarf')
 Card("Nabot determine",1,1,[CardPowers.Charge(),CardPowers.Determine(),CardPowers.QuandIlBlesse(CardPowers.Degat(Level.NbFixe(4),Target.UneCibleAuChoix())),CardPowers.Isole()],'photo/New/3071817171_1_7_wbnYoqMG.jpg','dwarf')
